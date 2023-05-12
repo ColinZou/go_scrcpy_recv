@@ -30,3 +30,6 @@
 *.exe
 *.out
 *.app
+lib/scrcpy_recv
+**/.vs
+**/images/*
