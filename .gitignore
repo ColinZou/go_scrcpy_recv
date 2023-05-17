@@ -35,3 +35,4 @@ lib/scrcpy_recv
 **/images/*
 cpp/release/
 cpp/debug/
+**/.clangd

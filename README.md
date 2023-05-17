@@ -26,7 +26,11 @@ Check ```examples/basic.go``` for more details.
 
 ## Note for running the example
 
-There's a modified scrcpy-server (andoird app) include inside scripts folder. This modified version supports pass device id as command line argument.
+There's a modified scrcpy-server (andoird app "scrcpy-server-debug") include inside scripts folder. This modified version supports pass device id as command line argument.
 You may need to set environment variable ADB_CMD, point it to path of adb.exe. 
+
+The source code of scrcpy-server-debug can be found [here](github.com/ColinZou/scrcpy).
+
+
 
 
