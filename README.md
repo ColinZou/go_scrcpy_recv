@@ -18,18 +18,11 @@ Open source software used(check lib folder):
 Check ```examples/basic.go``` for more details. 
 
 ## How to build and run?
+1. run ```script\build.bat```
 
-1. build cpp code
+2. run build\basic.exe
 
-You need to have visual studio installed. PRO/Community version will work. Open cpp folder in visual studio, choose "x64 Release" target and build it.
-
-2. build golang
-
-run ```script\build.bat```
-
-3. run build\basic.exe
-
-4. run scripts\adb-prepare.ps1 in powershell
+3. run scripts\adb-prepare.ps1 in powershell
 
 ## Note for running the example
 

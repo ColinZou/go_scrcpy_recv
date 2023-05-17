@@ -33,3 +33,5 @@
 lib/scrcpy_recv
 **/.vs
 **/images/*
+cpp/release/
+cpp/debug/

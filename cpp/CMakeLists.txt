@@ -10,7 +10,7 @@ set(GO_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." )
 
 add_definitions(-DWIN_DLL=1)
 
-IF (CMAKE_BUILD_TYPE STREQUAL Debug)
+IF (${CMAKE_BUILD_TYPE} STREQUAL Debug)
     set(FMT_LIB "fmtd")
     set(OPENCV_LIB "opencv_world470d")
 else()
@@ -81,7 +81,33 @@ add_custom_command(TARGET scrcpy_desktop POST_BUILD
         "${FFMPEG_ROOT}/bin/swscale-6.dll"
         $<TARGET_FILE_DIR:scrcpy_desktop>)
 
-add_custom_command(TARGET scrcpy_desktop POST_BUILD
+add_custom_command(TARGET scrcpy_recv POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
         "${OPENCV_HOME}/x64/vc16/bin/${OPENCV_LIB}.dll"
         $<TARGET_FILE_DIR:scrcpy_desktop>)
+
+
+add_custom_command(TARGET scrcpy_recv POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${FFMPEG_ROOT}/bin/avcodec-59.dll"
+        $<TARGET_FILE_DIR:scrcpy_recv>)
+add_custom_command(TARGET scrcpy_recv POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${FFMPEG_ROOT}/bin/avformat-59.dll"
+        $<TARGET_FILE_DIR:scrcpy_recv>)
+add_custom_command(TARGET scrcpy_recv POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${FFMPEG_ROOT}/bin/avutil-57.dll"
+        $<TARGET_FILE_DIR:scrcpy_recv>)
+add_custom_command(TARGET scrcpy_recv POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${FFMPEG_ROOT}/bin/swresample-4.dll"
+        $<TARGET_FILE_DIR:scrcpy_recv>)
+add_custom_command(TARGET scrcpy_recv POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${FFMPEG_ROOT}/bin/swscale-6.dll"
+        $<TARGET_FILE_DIR:scrcpy_recv>)
+add_custom_command(TARGET scrcpy_recv POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${OPENCV_HOME}/x64/vc16/bin/${OPENCV_LIB}.dll"
+        $<TARGET_FILE_DIR:scrcpy_recv>)
