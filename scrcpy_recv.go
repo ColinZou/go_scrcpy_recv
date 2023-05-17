@@ -74,7 +74,7 @@ type Receiver interface {
 	 * @param            deviceId            device's id
 	 * @param            callbackMethod      the callback method. (deviceId, png image data, png image size, screen size) in order.
 	 */
-	AddFrameImageCallback(deviceId string, callbackMethod func(string, []byte, *ImageSize, *ImageSize))
+	AddFrameImageCallback(deviceId string, callbackMethod func(string, *[]byte, *ImageSize, *ImageSize))
 
 	/**
 	 * Remove all frame image callback methods for a device
@@ -105,7 +105,7 @@ var globalTokenAndReceiverMap = make(map[string][]*receiver)
 type receiver struct {
 	r                   C.scrcpy_listener_t
 	token               string
-	frameImageCallbacks map[string][]func(string, []byte, *ImageSize, *ImageSize)
+	frameImageCallbacks map[string][]func(string, *[]byte, *ImageSize, *ImageSize)
 	deviceInfoCallbacks map[string][]func(string, int, int)
 }
 
@@ -170,12 +170,12 @@ func (r *receiver) removeFromGlobalMap() {
 	}
 }
 
-func (r *receiver) AddFrameImageCallback(deviceId string, callbackMethod func(string, []byte, *ImageSize, *ImageSize)) {
+func (r *receiver) AddFrameImageCallback(deviceId string, callbackMethod func(string, *[]byte, *ImageSize, *ImageSize)) {
 	items, found := r.frameImageCallbacks[deviceId]
 	if found {
 		items = append(items, callbackMethod)
 	} else {
-		items = make([]func(string, []byte, *ImageSize, *ImageSize), 1)
+		items = make([]func(string, *[]byte, *ImageSize, *ImageSize), 1)
 		items[0] = callbackMethod
 	}
 	r.frameImageCallbacks[deviceId] = items
@@ -243,21 +243,22 @@ func (r *receiver) GetToken() string {
 func (r *receiver) release() {
 	C.scrcpy_free_receiver(r.r)
 }
-func (r *receiver) invokeFrameImageCallbacks(deviceId string, imgData []byte, imgSize *ImageSize, screenSize *ImageSize, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (r *receiver) invokeFrameImageCallbacks(deviceId string, imgData *[]byte, imgSize *ImageSize, screenSize *ImageSize) {
 	cfgMap := r.frameImageCallbacks
 	callbacks, found := cfgMap[deviceId]
 	if !found {
-		fmt.Printf("No frame image callback configured for device %v, got png size %v %d bytes, screen size is %v\n", deviceId, imgSize, len(imgData), screenSize)
+		fmt.Printf("No frame image callback configured for device %v, got png size %v %d bytes, screen size is %v\n", deviceId, imgSize, len(*imgData), screenSize)
 		return
 	}
+	// using waitgroup to make sure all callbacks was invoked
 	var internalWg sync.WaitGroup
 	internalWgPointer := &internalWg
 	for _, item := range callbacks {
 		internalWg.Add(1)
+		callback := item
 		go func() {
-			item(deviceId, imgData, imgSize, screenSize)
-			internalWgPointer.Done()
+			defer internalWgPointer.Done()
+			callback(deviceId, imgData, imgSize, screenSize)
 		}()
 	}
 	internalWg.Wait()
@@ -269,8 +270,9 @@ func (r *receiver) invokeDeviceInfoCallbacks(deviceId string, width int, height 
 		return
 	}
 	for _, item := range callbacks {
+		callback := item
 		go func() {
-			item(deviceId, width, height)
+			callback(deviceId, width, height)
 		}()
 	}
 }
@@ -282,7 +284,7 @@ func New(token string) Receiver {
 		return nil
 	}
 	return &receiver{r: res, token: token,
-		frameImageCallbacks: make(map[string][]func(string, []byte, *ImageSize, *ImageSize)),
+		frameImageCallbacks: make(map[string][]func(string, *[]byte, *ImageSize, *ImageSize)),
 		deviceInfoCallbacks: make(map[string][]func(string, int, int))}
 }
 func Release(handle Receiver) {
@@ -298,15 +300,21 @@ func goScrcpyFrameImageCallback(cToken *C.char, cDeviceId *C.char, cImgData *C.u
 		fmt.Printf("No receiver registered callback for frame image, token=%v, device=%v, data_len=%v\n", cToken, cDeviceId, imgDataLen)
 		return
 	}
+	// using WaitGroup to making sure the bytes won't be released before callbacks invoked
 	var wg sync.WaitGroup
 	deviceId := C.GoString(cDeviceId)
 	imgSize := scrcpyRectToImageSize(cImgSize)
 	screenSize := scrcpyRectToImageSize(cScreenSize)
+	// copy the bytes into go's ram
 	// copied from https://stackoverflow.com/questions/27532523/how-to-convert-1024c-char-to-1024byte
 	imgBytes := C.GoBytes(unsafe.Pointer(cImgData), C.int(imgDataLen))
 	for _, r := range receiverList {
 		wg.Add(1)
-		r.invokeFrameImageCallbacks(deviceId, imgBytes, imgSize, screenSize, &wg)
+		receiveInstance := r
+		go func() {
+			defer wg.Done()
+			receiveInstance.invokeFrameImageCallbacks(deviceId, &imgBytes, imgSize, screenSize)
+		}()
 	}
 	wg.Wait()
 }
