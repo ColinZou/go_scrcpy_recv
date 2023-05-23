@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <fmt/core.h>
+#include "fmt/core.h"
 #include "socket_lib.h"
 #include "scrcpy_video_decoder.h"
 #include <stdlib.h>
@@ -9,7 +9,6 @@
 #include <Windows.h>
 #include <mutex>
 #include <map>
-#include "utils.h"
 #include "model.h"
 #include "frame_img_callback.h"
 

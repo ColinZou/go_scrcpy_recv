@@ -1,24 +1,21 @@
 #include <stdint.h>
-#include <fmt/core.h>
+#include "fmt/core.h"
 #include "scrcpy_video_decoder.h"
 #include <stdlib.h>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <Windows.h>
-#include "string.h"
-#include "opencv2/core.hpp"
 #include "opencv2/imgcodecs.hpp"
 #include <direct.h>
 #include <utils.h>
 #include <mutex>
 
 extern "C" {
-	#include <libavutil/imgutils.h>
-	#include <libavutil/samplefmt.h>
-	#include <libavutil/timestamp.h>
-	#include <libavcodec/avcodec.h>
-	#include <libavformat/avformat.h>
-	#include <libswscale/swscale.h>
+	#include "libavutil/samplefmt.h"
+	#include "libavutil/timestamp.h"
+	#include "libavcodec/avcodec.h"
+	#include "libavformat/avformat.h"
+	#include "libswscale/swscale.h"
 }
 using namespace std;
 using namespace cv;

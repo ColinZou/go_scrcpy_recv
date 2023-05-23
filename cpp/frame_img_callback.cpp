@@ -1,6 +1,6 @@
 #include "frame_img_callback.h"
 #include "utils.h"
-#include "fmt/color.h"
+#include "fmt/core.h"
 #include <thread>
 #define MAX_IMG_BUFFER_SIZE 1 * 1024 * 1024
 int frame_img_processor::callback_thread(device_frame_img_callback *callback_item) {

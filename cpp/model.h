@@ -48,4 +48,4 @@ public:
 	virtual void on_device_info(char* device_id, int screen_width, int screen_height) = 0;
 };
 
-#endif SCRCPY_MODEL_DEFINE
+#endif // !SCRCPY_MODEL_DEFINE

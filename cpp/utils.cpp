@@ -3,16 +3,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <windows.h>
-#include "fmt/core.h"
 #include <stdarg.h>
 #include <stdio.h>
 
-void debug_logf_actual(int line, char* file, char* const fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-	printf("%s#%d ", file, line);
-	vprintf(fmt, args);
-}
 int string_compartor(void* a, void* b) {
 	return _strcmpi((char*)a, (char*)b);
 }

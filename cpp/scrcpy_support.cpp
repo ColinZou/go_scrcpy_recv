@@ -1,8 +1,6 @@
 #include <stdint.h>
-#include <fmt/core.h>
-#include "scrcpy_support.h"
+#include "model.h"
 #include "socket_lib.h"
-#include "utils.h"
 #include "scrcpy_recv/scrcpy_recv.h"
 
 using namespace std;
@@ -12,7 +10,7 @@ SCRCPY_API scrcpy_listener_t scrcpy_new_receiver(char *token) {
 	return (scrcpy_listener_t) instance;
 }
 SCRCPY_API void scrcpy_free_receiver(scrcpy_listener_t handle) {
-	delete handle;
+	delete static_cast<socket_lib*>(handle);
 }
 SCRCPY_API void scrcpy_start_receiver(scrcpy_listener_t handle, char* listen_address, int net_buffer_size, int video_buffer_size) {
 	static_cast<socket_lib*>(handle)->startup(listen_address, net_buffer_size, video_buffer_size);
