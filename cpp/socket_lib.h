@@ -15,7 +15,9 @@ typedef struct ClientConnection {
 	struct connection_buffer_config* buffer_cfg;
 	// socket handle
 	SOCKET client_socket;
-}ClientConnection;
+    std::string *connection_type = nullptr;
+    std::string *device_id = nullptr;
+} ClientConnection;
 
 // socket lib for handling server socket and clietn connection
 class socket_lib : video_decode_callback {
@@ -132,5 +134,17 @@ private:
 	* @param		screen_height	original screen height
 	*/
 	void invoke_device_info_callbacks(char* device_id, int screen_width, int screen_height);
+    /**
+     * read socket type, it should return video/ctrl
+     * @param       connection          the client connection
+     * @return  socket type string
+     */
+    std::string* read_socket_type(ClientConnection* connection);
+    /**
+     * detect if a connection is a controll socket
+     * @param       connection          the client connection
+     * @return      true if the connection is a ctrl connection, false otherwise
+     */
+    bool is_controll_socket(ClientConnection* connection);
 };
 #endif // !SCRCPY_SOCKET_LIB

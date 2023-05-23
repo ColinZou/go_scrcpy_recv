@@ -10,7 +10,15 @@
 #include <mutex>
 #include <map>
 #include "model.h"
+#include "utils.h"
 #include "frame_img_callback.h"
+
+#ifndef SCRCPY_CTRL_SOCKET_NAME
+#define SCRCPY_CTRL_SOCKET_NAME "ctrl"
+#define SCRCPY_SOCKET_HEADER_SIZE 80 // 64 bytes name, 16 bytes type
+#define SCRCPY_HEADER_DEVICE_ID_LEN 64                                
+#define SCRCPY_HEADER_TYPE_LEN 16
+#endif //!SCRCPY_CTRL_SOCKET_NAME
 
 using namespace std;
 
@@ -64,10 +72,52 @@ void socket_lib::config_image_size(char* device_id, int width, int height) {
 	fmt::print("There're {} items inside image_size_dict\n", (long)(this->image_size_dict->size()));
 }
 
+std::string* socket_lib::read_socket_type(ClientConnection* connection) {
+    int buf_size = SCRCPY_SOCKET_HEADER_SIZE;
+    char data[SCRCPY_SOCKET_HEADER_SIZE];
+    char device_id[SCRCPY_HEADER_DEVICE_ID_LEN];
+    char socket_type[SCRCPY_HEADER_TYPE_LEN];
+    int received = recv(connection->client_socket, data, buf_size, 0);
+    fmt::print("received {}/{} bytes header\n", received, SCRCPY_SOCKET_HEADER_SIZE);
+    if (received != buf_size) {
+        return nullptr;
+    }
+    fmt::print("*************HEADER RECEIVED*************");
+    print_bytes(data, SCRCPY_SOCKET_HEADER_SIZE);
+
+    array_copy_to2(data, device_id, 0, 0, SCRCPY_HEADER_DEVICE_ID_LEN);
+    array_copy_to2(data, socket_type, SCRCPY_HEADER_DEVICE_ID_LEN, 0, SCRCPY_HEADER_TYPE_LEN);
+    fmt::print("checking device id = {}, socket_type = {}\n", device_id, socket_type);
+
+    connection->device_id = new std::string(device_id);
+    connection->device_id->copy(device_id, 64);
+
+    connection->connection_type = new std::string(socket_type);
+    connection->connection_type->copy(socket_type, 16);
+
+
+    fmt::print("Trying to read socket type, want {} bytes, got {} bytes. device_id={} socket_type={} \n", buf_size, 
+            received, connection->device_id->c_str(), connection->connection_type->c_str());
+    return connection->connection_type;
+}
+
+bool socket_lib::is_controll_socket(ClientConnection* connection) {
+    auto type = this->read_socket_type(connection);
+    bool result = strcmp(type->c_str(), SCRCPY_CTRL_SOCKET_NAME) == 0;
+    fmt::print("Is received socket type {} == {} for socket {} ? {}\n", type->c_str(), SCRCPY_CTRL_SOCKET_NAME, connection->client_socket, result);
+    delete type;
+    return result;
+}
+
 int socket_lib::handle_connetion(ClientConnection* connection) {
 	SOCKET client_socket = connection->client_socket;
 	int result = 0;
-	result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
+    //check if it is a controll socket
+    if (!this->is_controll_socket(connection)) {
+	    result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
+    } else {
+        fmt::print("{} is a ctrl socket \n", connection->client_socket);
+    }
 	goto end;
 end:
 	if (client_socket != INVALID_SOCKET) {
@@ -76,6 +126,12 @@ end:
 			fmt::print("Failed to close client connection: {}\n", WSAGetLastError());
 		}
 	}
+    if (connection->connection_type) {
+        delete connection->connection_type;
+    }
+    if(connection->device_id) {
+        delete connection->device_id;
+    }
 	free(connection);
 	return result;
 }
