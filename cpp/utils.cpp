@@ -56,7 +56,7 @@ void print_bytes(char *data, int length) {
             buffer = "";
             has_data = false;
         }
-        buffer = fmt::format("{}{}{0:#x}", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
+        buffer = fmt::format("{}{}{:#04x}", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
     }
     if (has_data) {
         fmt::print("{}\n", buffer);
