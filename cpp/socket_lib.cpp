@@ -402,7 +402,7 @@ void socket_lib::internal_on_ctrl_msg_sent_callback(std::string device_id, std::
         fmt::print("Could not find a callback handler for device {}'s ctrl sending callback\n'", device_id.c_str());
         return;
     }
-    fmt::print("Invoking ctrl sending callback, device_id={}, msg_id={}, data_len=, sending_status={}", device_id.c_str(), msg_id.c_str(), status, data_len);
+    fmt::print("Invoking ctrl sending callback, device_id={}, msg_id={}, data_len={}, sending_status={}\n", device_id.c_str(), msg_id.c_str(), data_len, status);
     callback_entry->second((char *)this->m_token.c_str(), (char *)device_id.c_str(), (char *)msg_id.c_str(), status, data_len);
 }
 

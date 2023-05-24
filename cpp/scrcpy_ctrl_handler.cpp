@@ -5,6 +5,7 @@
 #include <WinSock2.h>
 #include <functional>
 #include <winbase.h>
+#include "utils.h"
 
 scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, SOCKET socket): device_id(dev_id), 
     client_socket(socket), outgoing_queue(new std::deque<scrcpy_ctrl_msg*>()) {
@@ -35,10 +36,16 @@ void scrcpy_ctrl_socket_handler::stop() {
     this->keep_running = false;
 }
 void scrcpy_ctrl_socket_handler::send_msg(char *msg_id, uint8_t *data, int data_len) {
+    fmt::print("Acquiring a lock for sending message msg_id={} for device {}\n", msg_id, this->device_id->c_str());
     std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
+    fmt::print("Lock granted for sending message msg_id={} for device {}\n", msg_id, this->device_id->c_str());
     auto msg = new scrcpy_ctrl_msg();
-    msg->msg_id = msg_id;
-    msg->data = (char *)data;
+    char* msg_id_copy = (char*)malloc(sizeof(char) * strlen(msg_id) + 1);
+    char* data_copy = (char*)malloc(sizeof(char) * data_len);
+    array_copy_to(msg_id, msg_id_copy, 0, strlen(msg_id));
+    array_copy_to(data_copy, (char*)data, 0, data_len);
+    msg->msg_id = msg_id_copy;
+    msg->data = data_copy;
     msg->length = data_len;
     this->outgoing_queue->push_front(msg);
 }
@@ -52,15 +59,19 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
                 break;
             }
         }
+        uint64_t queue_size = 0;
         {
             std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
-            auto size = (uint64_t)this->outgoing_queue->size();
-            if (size <= 0) {
-                Sleep(100);
-                continue;
-            }
-            fmt::print("{} messages pending for device {} \n", size, this->device_id->c_str());
-            for (int i = 0; i < size; i++) {
+            queue_size = (uint64_t)this->outgoing_queue->size();
+        }
+        if (queue_size<= 0) {
+            Sleep(rand() % 10);
+            continue;
+        }
+        {
+            std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
+            fmt::print("{} messages pending for device {} \n", queue_size, this->device_id->c_str());
+            for (int i = 0; i < queue_size; i++) {
                 auto msg = this->outgoing_queue->back();
                 this->outgoing_queue->pop_back();
                 //send it
