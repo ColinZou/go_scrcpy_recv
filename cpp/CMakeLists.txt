@@ -31,9 +31,14 @@ endif()
 project ("scrcpy_desktop" LANGUAGES CXX C)
 
 add_library(scrcpy_recv SHARED
-    "scrcpy_support.cpp" "socket_lib.h"
-    "socket_lib.cpp" "model.h"   "scrcpy_video_decoder.h" "scrcpy_video_decoder.cpp" "frame_img_callback.h" 
-    "frame_img_callback.cpp" "utils.h" "utils.cpp" "${GO_LIB_ROOT}/scrcpy_recv/scrcpy_recv.h")
+    "scrcpy_support.h" "scrcpy_support.cpp"
+    "socket_lib.h" "socket_lib.cpp"
+    "model.h"
+    "scrcpy_video_decoder.h" "scrcpy_video_decoder.cpp"
+    "frame_img_callback.h" "frame_img_callback.cpp"
+    "utils.h" "utils.cpp"
+    "scrcpy_ctrl_handler.h" "scrcpy_ctrl_handler.cpp"
+    "${GO_LIB_ROOT}/scrcpy_recv/scrcpy_recv.h")
 
 install(TARGETS scrcpy_recv DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 install(FILES "${GO_LIB_ROOT}/scrcpy_recv/scrcpy_recv.h" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/scrcpy_recv/scrcpy_recv.h")
@@ -41,9 +46,14 @@ install(FILES "${GO_LIB_ROOT}/scrcpy_recv/scrcpy_recv.h" DESTINATION "${CMAKE_CU
 # Add source to this project's executable.
 add_executable (scrcpy_desktop
     "scrcpy_desktop.cpp" "scrcpy_desktop.h"
-    "scrcpy_support.cpp" "scrcpy_support.h"
-    "socket_lib.h" "socket_lib.cpp" "model.h" "scrcpy_video_decoder.h" "scrcpy_video_decoder.cpp" 
-    "frame_img_callback.h" "frame_img_callback.cpp" "utils.h" "utils.cpp" "${GO_LIB_ROOT}/scrcpy_recv/scrcpy_recv.h")
+    "scrcpy_support.h" "scrcpy_support.cpp"
+    "socket_lib.h" "socket_lib.cpp"
+    "model.h"
+    "scrcpy_video_decoder.h" "scrcpy_video_decoder.cpp"
+    "frame_img_callback.h" "frame_img_callback.cpp"
+    "utils.h" "utils.cpp"
+    "scrcpy_ctrl_handler.h" "scrcpy_ctrl_handler.cpp"
+    "${GO_LIB_ROOT}/scrcpy_recv/scrcpy_recv.h")
 
 option(CMAKE_USE_WIN32_THREADS_INIT "using WIN32 threads" ON)
 option(gtest_disable_pthreads "Disable uses of pthreads in gtest." ON)

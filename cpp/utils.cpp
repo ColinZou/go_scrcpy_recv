@@ -40,8 +40,8 @@ void array_copy_to(char* src, char* dest, const int dest_start_index, const int 
 	}
 }
 void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_index, int copy_length) {
-	for (int i = src_start_index; i < copy_length; i++) {
-		dest[dest_start_index + i] = src[i];
+	for (int i = 0; i < copy_length; i++) {
+		dest[dest_start_index + i] = src[src_start_index + i];
 	}
 }
 void print_bytes(char *data, int length) {
@@ -57,6 +57,7 @@ void print_bytes(char *data, int length) {
             has_data = false;
         }
         buffer = fmt::format("{}{}{:#04x}", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
+        has_data = true;
     }
     if (has_data) {
         fmt::print("{}\n", buffer);

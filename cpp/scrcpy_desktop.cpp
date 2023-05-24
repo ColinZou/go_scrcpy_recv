@@ -2,8 +2,6 @@
 //
 
 #include "scrcpy_support.h"
-#include "scrcpy_desktop.h"
-#include "windows.h"
 #include "fmt/core.h"
 #include <direct.h>
 #include <deque>
@@ -39,6 +37,10 @@ void test_deque() {
 void device_info_callback(char *token, char* device_id, int w, int h) {
 	fmt::print("device_info_callback device_id={} screen_width={} screen_height={}\n", device_id, w, h);
 }
+
+void device_ctrl_msg_callback(char *token, char *device_id, char* msg_id, int status, int data_len) {
+    fmt::print("device_ctrl_msg_callback invokded, token={} device_id={} msg_id={} status={} data_len={}\n", token, device_id, msg_id, status, data_len);
+}
 int main(){
 	char address[] = "27183";
 	int kb_2048 = 1024 * 2;
@@ -48,6 +50,7 @@ int main(){
 	scrcpy_device_info_register_callback(listener, (char*)device_id, device_info_callback);
 	scrcpy_set_image_size(listener, (char*)device_id, 540, 1076);
 	scrcpy_frame_register_callback(listener, (char*)device_id, test_internal_video_frame_callback);
+    scrcpy_device_set_ctrl_msg_send_callback(listener, (char*)device_id, device_ctrl_msg_callback);
 	fmt::print("Trying to start listener\n");
 	scrcpy_start_receiver(listener, address, kb_2048, kb_2048 * 2);
 	free((char*)device_id);

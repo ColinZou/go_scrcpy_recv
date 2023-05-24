@@ -28,6 +28,12 @@ typedef void (*scrcpy_frame_img_callback)
 // callback for device screen size
 typedef void (*scrcpy_device_info_callback)
     (char *token, char *device_id, int screen_width, int screen_height);
+
+// callback for sending device's ctrl message
+// status will equals to data_len if sents ok.
+// status will be -9999 if there's no ctrl socket connected.
+typedef void (*scrcpy_device_ctrl_msg_send_callback) (char* token, char *device_id, char *msg_id, int status, int data_len);
+
 /**
  * create a new handle
  *
@@ -111,6 +117,25 @@ SCRCPY_API void scrcpy_device_info_register_callback(scrcpy_listener_t handle, c
  * @param       device_id   the device's id
  */
 SCRCPY_API void scrcpy_device_info_unregister_all_callbacks(scrcpy_listener_t handle, char *device_id);
+
+/**
+ * Set callback handler of sending ctrl message
+ * @param       handler     receiver handle
+ * @param       token       the server's token
+ * @param       device_id   the device_id
+ * @param       callback    the callback method
+ */
+SCRCPY_API void scrcpy_device_set_ctrl_msg_send_callback(scrcpy_listener_t handle, char *device_id, scrcpy_device_ctrl_msg_send_callback callback);
+
+/**
+ * Send a ctrl message to device
+ * @param       handler         the receiver handle
+ * @param       device_id       the device
+ * @param       msg_id          id of the message
+ * @param       data            data of the msg
+ * @param       data_len        length of the data
+ */
+SCRCPY_API void scrcpy_device_send_ctrl_msg(scrcpy_listener_t handle, char *device_id, char *msg_id, uint8_t *data, int data_len);
 
 #ifdef __cplusplus
 }
