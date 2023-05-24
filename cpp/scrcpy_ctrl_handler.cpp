@@ -8,7 +8,9 @@
 #include "utils.h"
 
 scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, SOCKET socket): device_id(dev_id), 
-    client_socket(socket), outgoing_queue(new std::deque<scrcpy_ctrl_msg*>()) {
+    client_socket(socket), 
+    outgoing_queue(new std::deque<scrcpy_ctrl_msg*>()),
+    outgoing_trash(new std::deque<scrcpy_ctrl_msg_trashed*>()){
     auto dev_id_cloned = new std::string(dev_id->c_str());
     this->device_id = dev_id_cloned;
 }
@@ -30,6 +32,20 @@ scrcpy_ctrl_socket_handler::~scrcpy_ctrl_socket_handler() {
         this->outgoing_queue->clear();
         delete this->outgoing_queue;
     }
+    if (this->outgoing_trash) {
+        auto size = this->outgoing_trash->size();
+        for(int i = 0; i < size; i++) {
+            if (this->outgoing_trash->empty()) {
+                break;
+            }
+            auto item = this->outgoing_trash->back();
+            this->outgoing_trash->pop_back();
+            delete item->msg->data;
+            delete item->msg->msg_id;
+            delete item->msg;
+            delete item;
+        }
+    }
 }
 void scrcpy_ctrl_socket_handler::stop() {
     std::lock_guard<std::mutex> lock(this->stat_lock);
@@ -49,7 +65,30 @@ void scrcpy_ctrl_socket_handler::send_msg(char *msg_id, uint8_t *data, int data_
     msg->length = data_len;
     this->outgoing_queue->push_front(msg);
 }
-
+void scrcpy_ctrl_socket_handler::cleanup_trash() {
+    auto size = this->outgoing_trash->size();
+    int cleaned_size = 0;
+    for(int i = 0; i < size; i++) {
+        if (this->outgoing_trash->empty()) {
+            break;
+        }
+        auto item = this->outgoing_trash->back();
+        // keep the item for a while
+        if (item->counter < 100) {
+            item->counter ++;
+            continue;
+        }
+        this->outgoing_trash->pop_back();
+        delete item->msg->msg_id;
+        delete item->msg->data;
+        delete item->msg;
+        delete item;
+        cleaned_size ++;
+    }
+    if (cleaned_size > 0) {
+        fmt::print("Released {} trashed ctrl msg\n", cleaned_size);
+    }
+}
 int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string, int, int)> callback) {
     int result = 0;
     while(true) {
@@ -64,6 +103,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
             std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
             queue_size = (uint64_t)this->outgoing_queue->size();
         }
+        cleanup_trash();
         if (queue_size<= 0) {
             Sleep(rand() % 10);
             continue;
@@ -86,10 +126,10 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
                 if(NULL != callback) {
                     callback(std::string(this->device_id->c_str()), std::string(msg->msg_id), status, msg->length);
                 }
-                // cleaning up the ram
-                delete msg->data;
-                delete msg->msg_id;
-                delete msg;
+                // save to trash 
+                auto trash = new scrcpy_ctrl_msg_trashed();
+                trash->msg = msg;
+                this->outgoing_trash->push_front(trash);
             }
         }
     }

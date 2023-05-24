@@ -21,4 +21,4 @@ xcopy /Y Release\*.lib %LIB_BIN_TARGET_FOLDER% &&^
 echo ************************ &&^
 echo Building go example code &&^
 go build -C %GO_SRC_FOLDER% -o build\basic.exe examples\basic.go &&^
-XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is %SCRIPT_DIR%\build\basic.exe
+XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is %GO_SRC_FOLDER%\build\basic.exe

@@ -12,6 +12,10 @@ typedef struct scrcpy_ctrl_msg {
     int length;
     char *msg_id;
 } scrcpy_ctrl_msg;
+typedef struct scrcpy_ctrl_msg_trashed {
+    struct scrcpy_ctrl_msg* msg;
+    int counter = 0;
+} scrcpy_ctrl_msg_trashed;
 class scrcpy_ctrl_socket_handler 
 {
     public:
@@ -26,6 +30,9 @@ class scrcpy_ctrl_socket_handler
         std::mutex stat_lock;
         std::mutex outgoing_queue_lock;
         std::deque<scrcpy_ctrl_msg*> *outgoing_queue;
+        std::deque<scrcpy_ctrl_msg_trashed*> *outgoing_trash;
         bool keep_running = true;
+
+        void cleanup_trash();
 };
 #endif //!SCRCPY_CTRL_HANDLER
