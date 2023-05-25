@@ -8,9 +8,13 @@
 #include <stdint.h>
 #include <vector>
 #include <Windows.h>
+#include <stdlib.h>
+#include <string.h>
+#include <cstring>
+#include <algorithm>
 
-using namespace std;
 int global_frame_no = 0;
+bool save_frame_images = false;
 char filename_buf[256];
 const char *device_id = "session001";
 scrcpy_listener_t listener = nullptr;
@@ -18,7 +22,13 @@ void test_internal_video_frame_callback(char *token, char* device_id, uint8_t* f
 	scrcpy_rect screen_size) {
 	global_frame_no++;
 	fmt::print("Got video frame for token = {} device = {} data size = {} scaled from {}x{} to {}x{}\n", token, device_id, frame_data_size, screen_size.width, screen_size.height, img_size.width, img_size.height);
+
+    if (!save_frame_images) {
+        return;
+    }
+
 	_mkdir("images");
+
 	sprintf_s(filename_buf, "images/frame-%02d.png", global_frame_no);
 	FILE* f;
 	errno_t err = fopen_s(&f, filename_buf, "wb");
@@ -87,11 +97,24 @@ void device_info_callback(char *token, char* device_id, int w, int h) {
 void device_ctrl_msg_callback(char *token, char *device_id, char* msg_id, int status, int data_len) {
     fmt::print("device_ctrl_msg_callback invoked, token={} device_id={} msg_id={} status={} data_len={}\n", token, device_id, msg_id, status, data_len);
 }
+void config_from_env() {
+    const char* env_name = "SCRCPY_SAVE_FRAMES";
+    auto env_value = std::getenv(env_name);
+    if (!env_value || std::string(env_value).empty()){
+        return;
+    }
+    auto env_value_str = std::string(env_value);
+    std::transform(env_value_str.begin(), env_value_str.end(), env_value_str.begin(), ::tolower);
+    if (strcmp(env_value_str.c_str(), "y")) {
+        save_frame_images = true;
+    }
+}
 int main(){
 	char address[] = "27183";
 	int kb_2048 = 1024 * 2;
 	fmt::print("Trying to listen at port {}\n", address);
 	char token[] = "test";
+    config_from_env();
 	listener = scrcpy_new_receiver(token);
 	scrcpy_device_info_register_callback(listener, (char*)device_id, device_info_callback);
 	scrcpy_set_image_size(listener, (char*)device_id, 540, 1076);

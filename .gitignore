@@ -30,7 +30,7 @@
 *.exe
 *.out
 *.app
-lib/scrcpy_recv
+lib/scrcpy_recv/
 **/.vs
 **/images/*
 cpp/release/

@@ -13,7 +13,7 @@ Open source software used(check lib folder):
 3. fmt
 
 ## How to use it?
-```go get -u github.com/ColinZou/go_scrcpy_recv@0.1.0```
+```go get -u github.com/ColinZou/go_scrcpy_recv@0.2.0```
 
 Check ```examples/basic.go``` for more details. 
 
@@ -31,6 +31,7 @@ You may need to set environment variable ADB_CMD, point it to path of adb.exe.
 
 The source code of scrcpy-server-debug can be found [here](github.com/ColinZou/scrcpy).
 
+You need to set environment variable SCRCPY_SAVE_FRAMES=y if you want to save frame images into "images" folder. The images folder will be created in PWD(current directory).
 
 
 
