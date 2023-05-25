@@ -61,6 +61,9 @@ func configFromEnv() {
 	}
 	fmt.Printf("%s save frame images into images/ folder.\n", msgPrefix)
 }
+func onDeviceDisconnected(token string, deviceId string, connectionType string) {
+	fmt.Printf("%s connection disconected for device %v, token=%v\n", connectionType, deviceId, token)
+}
 func main() {
 	deviceId := "session001"
 	receiver := scrcpy_recv.New(deviceId)
@@ -69,6 +72,7 @@ func main() {
 	receiver.AddDeviceInfoCallback(deviceId, onDeviceInfoCallback)
 	receiver.AddFrameImageCallback(deviceId, onFrameImageCallback)
 	receiver.AddCtrlEventSendCallback(deviceId, onCtrlEventSent)
+	receiver.AddDeviceDisconnectedCallback(deviceId, onDeviceDisconnected)
 	receiver.Startup("27183", 2048, 4096)
 	scrcpy_recv.Release(receiver)
 }

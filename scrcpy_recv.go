@@ -12,6 +12,7 @@ package go_scrcpy_recv
 extern void c_goScrcpyFrameImageCallback(char *token, char *device_id, uint8_t * img_data, uint32_t img_data_len, scrcpy_rect img_size, scrcpy_rect screen_size);
 extern void c_goScrcpyDeviceInfoCallback(char *token, char *device_id, int width, int height);
 extern void c_goScrcpyCtrlSendCallback(char *token, char *device_id, char *msg_id, int status, int data_len);
+void c_goScrcpyDeviceDisconnectedCallback(char *token, char *device_id, char *con_type);
 */
 import "C"
 import (
@@ -118,9 +119,24 @@ type Receiver interface {
 	 * @param       data            event data
 	**/
 	SendCtrlEvent(deviceId string, msgId string, data *[]byte)
+
+	/**
+	 * Add a callback for device disconnected
+	 * @param        deviceId        the device's identifier
+	 * @param        callback        the callback method
+	 **/
+	AddDeviceDisconnectedCallback(deviceId string, callback DeviceDisconnectedCallback)
+	/**
+	 * Remove all callbacks of a device's disconnected event
+	 * @param         deviceId        the device's identifier
+	 **/
+	RemoveAllDisconnectedCallbck(deviceId string)
 }
 
 var globalTokenAndReceiverMap = make(map[string][]*receiver)
+
+// device disconnected callback, arguments will be: token deviceId and connectionType(video/ctrl)
+type DeviceDisconnectedCallback func(string, string, string)
 
 type receiver struct {
 	r                      C.scrcpy_listener_t
@@ -128,6 +144,7 @@ type receiver struct {
 	frameImageCallbacks    map[string][]func(string, *[]byte, *ImageSize, *ImageSize)
 	deviceInfoCallbacks    map[string][]func(string, int, int)
 	ctrlEventSendCallbacks map[string][]func(string, string, int, int)
+	disconnectedCallbacks  map[string][]DeviceDisconnectedCallback
 }
 
 func (r *receiver) Startup(listenAddr string, networkBufferSizeKb int, videoBufferSizeKb int) {
@@ -186,7 +203,7 @@ func (r *receiver) addToGlobalMap() {
 }
 func (r *receiver) removeFromGlobalMap() {
 	// remove from global only when there's no callbacks
-	if len(r.deviceInfoCallbacks) == 0 && len(r.frameImageCallbacks) == 0 && len(r.ctrlEventSendCallbacks) == 0 {
+	if len(r.deviceInfoCallbacks) == 0 && len(r.frameImageCallbacks) == 0 && len(r.ctrlEventSendCallbacks) == 0 && len(r.disconnectedCallbacks) == 0 {
 		delete(globalTokenAndReceiverMap, r.token)
 	}
 }
@@ -198,9 +215,9 @@ func (r *receiver) AddFrameImageCallback(deviceId string, callbackMethod func(st
 	} else {
 		items = make([]func(string, *[]byte, *ImageSize, *ImageSize), 1)
 		items[0] = callbackMethod
+		r.addToGlobalMap()
 	}
 	r.frameImageCallbacks[deviceId] = items
-	r.addToGlobalMap()
 
 	cDeviceId := C.CString(deviceId)
 	defer func() {
@@ -234,8 +251,8 @@ func (r *receiver) AddDeviceInfoCallback(deviceId string, callbackMethod func(st
 		items = make([]func(string, int, int), 1)
 		items[0] = callbackMethod
 		r.deviceInfoCallbacks[deviceId] = items
+		r.addToGlobalMap()
 	}
-	r.addToGlobalMap()
 	cDeviceId := C.CString(deviceId)
 	defer func() {
 		C.free(unsafe.Pointer(cDeviceId))
@@ -304,11 +321,12 @@ func (r *receiver) AddCtrlEventSendCallback(deviceId string, callbackMethod func
 	if !found {
 		callbacks = make([]func(string, string, int, int), 1)
 		callbacks[0] = callbackMethod
+		r.addToGlobalMap()
 	} else {
 		callbacks = append(callbacks, callbackMethod)
 	}
 	cfgMap[deviceId] = callbacks
-	r.addToGlobalMap()
+	// register callback with c
 	cDeviceId := C.CString(deviceId)
 	defer func() {
 		C.free(unsafe.Pointer(cDeviceId))
@@ -350,6 +368,44 @@ func (r *receiver) invokeCtrlEventSendCallbacks(deviceId string, msgId string, s
 	}
 }
 
+func (r *receiver) AddDeviceDisconnectedCallback(deviceId string, callback DeviceDisconnectedCallback) {
+	cfgMap := r.disconnectedCallbacks
+	callbacks, found := cfgMap[deviceId]
+	if !found {
+		callbacks = make([]DeviceDisconnectedCallback, 1)
+		callbacks[0] = callback
+		r.addToGlobalMap()
+	} else {
+		callbacks = append(callbacks, callback)
+	}
+	cfgMap[deviceId] = callbacks
+	// register callback method
+	c_goScrcpyDeviceDisconnectedCallback := C.scrcpy_device_disconnected_callback(C.c_goScrcpyDeviceDisconnectedCallback)
+	C.scrcpy_set_device_disconnected_callback(r.r, c_goScrcpyDeviceDisconnectedCallback)
+}
+
+func (r *receiver) RemoveAllDisconnectedCallbck(deviceId string) {
+	cfgMap := r.disconnectedCallbacks
+	_, found := cfgMap[deviceId]
+	if found {
+		delete(cfgMap, deviceId)
+		r.removeFromGlobalMap()
+	}
+}
+
+func (r *receiver) invokeDeviceDisconnectedCallbacks(deviceId string, connectionType string) {
+	callbackMethods, found := r.disconnectedCallbacks[deviceId]
+	if !found {
+		fmt.Printf("No callback method register for token %v\n", r.token)
+		return
+	}
+	for _, method := range callbackMethods {
+		go func() {
+			method(r.token, deviceId, connectionType)
+		}()
+	}
+}
+
 func New(token string) Receiver {
 	cToken := C.CString(token)
 	res := C.scrcpy_new_receiver(cToken)
@@ -361,6 +417,7 @@ func New(token string) Receiver {
 		frameImageCallbacks:    make(map[string][]func(string, *[]byte, *ImageSize, *ImageSize)),
 		deviceInfoCallbacks:    make(map[string][]func(string, int, int)),
 		ctrlEventSendCallbacks: make(map[string][]func(string, string, int, int)),
+		disconnectedCallbacks:  make(map[string][]DeviceDisconnectedCallback),
 	}
 }
 func Release(handle Receiver) {
@@ -416,12 +473,27 @@ func goScrcpyCtrlSendCallback(cToken *C.char, cDeviceId *C.char, cMsgId *C.char,
 	token := C.GoString(cToken)
 	receiverList, found := globalTokenAndReceiverMap[token]
 	if !found {
-		fmt.Printf("No receiver registered callback for device info, token=%v, device=%v, status=%v, data_len=%v \n", cToken, cDeviceId, cStatus, cDataLen)
+		fmt.Printf("No receiver registered callback for controll envent sending, token=%v, device=%v, status=%v, data_len=%v \n", cToken, cDeviceId, cStatus, cDataLen)
 		return
 	}
 	deviceId := C.GoString(cDeviceId)
 	msgId := C.GoString(cMsgId)
 	for _, r := range receiverList {
 		r.invokeCtrlEventSendCallbacks(deviceId, msgId, int(cStatus), int(cDataLen))
+	}
+}
+
+//export goScrcpyDeviceDisconnectedCallback
+func goScrcpyDeviceDisconnectedCallback(cToken *C.char, cDeviceId *C.char, cConnectionType *C.char) {
+	token := strings.Clone(C.GoString(cToken))
+	receiverList, found := globalTokenAndReceiverMap[token]
+	if !found {
+		fmt.Printf("No receiver registered callback for device disconnected token=%v device=%v connectionType=%v\n", cToken, cDeviceId, cConnectionType)
+		return
+	}
+	deviceId := strings.Clone(C.GoString(cDeviceId))
+	connectionType := strings.Clone(C.GoString(cConnectionType))
+	for _, r := range receiverList {
+		r.invokeDeviceDisconnectedCallbacks(deviceId, connectionType)
 	}
 }

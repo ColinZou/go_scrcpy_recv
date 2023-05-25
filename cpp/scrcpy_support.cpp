@@ -67,5 +67,5 @@ SCRCPY_API void scrcpy_device_send_ctrl_msg(scrcpy_listener_t handle, char *devi
 }
 
 SCRCPY_API void scrcpy_set_device_disconnected_callback(scrcpy_listener_t handle, scrcpy_device_disconnected_callback callback) {
-
+	static_cast<socket_lib*>(handle)->set_device_disconnected_callback(callback);
 }
