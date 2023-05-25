@@ -2,16 +2,16 @@
 //
 
 #include "scrcpy_support.h"
-#include "fmt/core.h"
 #include <direct.h>
 #include <deque>
 #include <stdint.h>
 #include <vector>
 #include <Windows.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <cstring>
 #include <algorithm>
+#include <stdio.h>
 
 int global_frame_no = 0;
 bool save_frame_images = false;
@@ -21,7 +21,7 @@ scrcpy_listener_t listener = nullptr;
 void test_internal_video_frame_callback(char *token, char* device_id, uint8_t* frame_data, uint32_t frame_data_size, scrcpy_rect img_size,
 	scrcpy_rect screen_size) {
 	global_frame_no++;
-	fmt::print("Got video frame for token = {} device = {} data size = {} scaled from {}x{} to {}x{}\n", token, device_id, frame_data_size, screen_size.width, screen_size.height, img_size.width, img_size.height);
+	printf("Got video frame for token = %s device = %s data size = %d scaled from %dx%d to %dx%d\n", token, device_id, frame_data_size, screen_size.width, screen_size.height, img_size.width, img_size.height);
 
     if (!save_frame_images) {
         return;
@@ -33,7 +33,7 @@ void test_internal_video_frame_callback(char *token, char* device_id, uint8_t* f
 	FILE* f;
 	errno_t err = fopen_s(&f, filename_buf, "wb");
 	if (err) {
-		fmt::print("Could not open file {} for write\n", filename_buf);
+		printf("Could not open file %s for write\n", filename_buf);
 		return;
 	}
 	fwrite(frame_data, sizeof(uint8_t), frame_data_size, f);
@@ -43,7 +43,7 @@ void test_deque() {
 	std::deque<int> my_queue = { 1, 2, 3 };
 	int size = my_queue.size();
 	while (size > 0) {
-		fmt::print("Got {} \n", my_queue.back());
+		printf("Got %d \n", my_queue.back());
 		my_queue.pop_back();
 		size --;
 	}
@@ -56,9 +56,9 @@ std::vector<uint8_t> int_to_bytes(int paramInt)
      return arrayOfByte;
 }
 void device_info_callback(char *token, char* device_id, int w, int h) {
-	fmt::print("device_info_callback device_id={} screen_width={} screen_height={}\n", device_id, w, h);
+	printf("device_info_callback device_id=%s screen_width=%d screen_height=%d\n", device_id, w, h);
     Sleep(1000);
-    fmt::print("About to send a key event");
+    printf("About to send a key event");
     // try sending a ctrl msg
     uint8_t ctrl_msg[14];
     //clean first
@@ -95,7 +95,7 @@ void device_info_callback(char *token, char* device_id, int w, int h) {
 }
 
 void device_ctrl_msg_callback(char *token, char *device_id, char* msg_id, int status, int data_len) {
-    fmt::print("device_ctrl_msg_callback invoked, token={} device_id={} msg_id={} status={} data_len={}\n", token, device_id, msg_id, status, data_len);
+    printf("device_ctrl_msg_callback invoked, token=%s device_id=%s msg_id=%s status=%d data_len=%d\n", token, device_id, msg_id, status, data_len);
 }
 void config_from_env() {
     const char* env_name = "SCRCPY_SAVE_FRAMES";
@@ -112,7 +112,7 @@ void config_from_env() {
 int main(){
 	char address[] = "27183";
 	int kb_2048 = 1024 * 2;
-	fmt::print("Trying to listen at port {}\n", address);
+	printf("Trying to listen at port %s \n", (char *) address);
 	char token[] = "test";
     config_from_env();
 	listener = scrcpy_new_receiver(token);
@@ -120,7 +120,7 @@ int main(){
 	scrcpy_set_image_size(listener, (char*)device_id, 540, 1076);
 	scrcpy_frame_register_callback(listener, (char*)device_id, test_internal_video_frame_callback);
     scrcpy_device_set_ctrl_msg_send_callback(listener, (char*)device_id, device_ctrl_msg_callback);
-	fmt::print("Trying to start listener\n");
+	printf("Trying to start listener\n");
 	scrcpy_start_receiver(listener, address, kb_2048, kb_2048 * 2);
 	free((char*)device_id);
 	return 0;

@@ -4,24 +4,28 @@
 cmake_minimum_required (VERSION 3.8)
 
 set(FFMPEG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../lib/ffmpeg-n5.1.3-win64-gpl-shared-5.1")
-set(FMT_HOME "${CMAKE_CURRENT_SOURCE_DIR}/../lib/fmt-9.1.0")
 set(OPENCV_HOME "${CMAKE_CURRENT_SOURCE_DIR}/../lib/opencv")
 set(GO_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." )
 
-add_definitions(-DWIN_DLL=1)
+message("SCRCPY_DEBUG: $ENV{SCRCPY_DEBUG}")
 
-IF (${CMAKE_BUILD_TYPE} STREQUAL Debug)
-    set(FMT_LIB "fmtd")
-    set(OPENCV_LIB "opencv_world470d")
-else()
-    set(FMT_LIB "fmt")
-    set(OPENCV_LIB "opencv_world470")
-
+IF (DEFINED ENV{SCRCPY_DEBUG})
+    SET(SCRCPY_NO_DEBUG_OPT "")
+ELSE()
+    SET(SCRCPY_NO_DEBUG_OPT -DSCRCPY_NO_DEBUG=1)
 ENDIF()
 
-include_directories(${FFMPEG_ROOT}/include ${CMAKE_CURRENT_SOURCE_DIR} ${FMT_HOME}/include ${OPENCV_HOME}/include ${GO_LIB_ROOT})
+add_definitions(-DWIN_DLL=1 ${SCRCPY_NO_DEBUG_OPT})
 
-link_directories(${FFMPEG_ROOT}/lib "${FMT_HOME}/lib" "${OPENCV_HOME}/x64/vc16/lib")
+IF (${CMAKE_BUILD_TYPE} STREQUAL Debug)
+    SET(OPENCV_LIB "opencv_world470d")
+ELSE()
+    SET(OPENCV_LIB "opencv_world470")
+ENDIF()
+
+include_directories(${FFMPEG_ROOT}/include ${CMAKE_CURRENT_SOURCE_DIR} ${OPENCV_HOME}/include ${GO_LIB_ROOT})
+
+link_directories(${FFMPEG_ROOT}/lib ${OPENCV_HOME}/x64/vc16/lib)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
@@ -33,7 +37,7 @@ project ("scrcpy_desktop" LANGUAGES CXX C)
 add_library(scrcpy_recv SHARED
     "scrcpy_support.h" "scrcpy_support.cpp"
     "socket_lib.h" "socket_lib.cpp"
-    "model.h"
+    "model.h" "logging.h" "logging.cpp"
     "scrcpy_video_decoder.h" "scrcpy_video_decoder.cpp"
     "frame_img_callback.h" "frame_img_callback.cpp"
     "utils.h" "utils.cpp"
@@ -48,7 +52,7 @@ add_executable (scrcpy_desktop
     "scrcpy_desktop.cpp" "scrcpy_desktop.h"
     "scrcpy_support.h" "scrcpy_support.cpp"
     "socket_lib.h" "socket_lib.cpp"
-    "model.h"
+    "model.h" "logging.h" "logging.cpp"
     "scrcpy_video_decoder.h" "scrcpy_video_decoder.cpp"
     "frame_img_callback.h" "frame_img_callback.cpp"
     "utils.h" "utils.cpp"
@@ -63,11 +67,11 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 if(WIN32)
-  target_link_libraries(scrcpy_desktop PUBLIC wsock32 ws2_32 avcodec avformat avutil swscale swresample ${FMT_LIB} ${OPENCV_LIB})
-  target_link_libraries(scrcpy_recv PUBLIC wsock32 ws2_32 avcodec avformat avutil swscale swresample ${FMT_LIB} ${OPENCV_LIB})
+  target_link_libraries(scrcpy_desktop PUBLIC wsock32 ws2_32 avcodec avformat avutil swscale swresample ${OPENCV_LIB})
+  target_link_libraries(scrcpy_recv PUBLIC wsock32 ws2_32 avcodec avformat avutil swscale swresample ${OPENCV_LIB})
 else()
-  target_link_libraries(scrcpy_desktop PUBLIC avcodec avformat avutil swscale swresample ${FMT_LIB} ${OPENCV_LIB})
-  target_link_libraries(scrcpy_recv PUBLIC avcodec avformat avutil swscale swresample ${FMT_LIB} ${OPENCV_LIB})
+  target_link_libraries(scrcpy_desktop PUBLIC avcodec avformat avutil swscale swresample ${OPENCV_LIB})
+  target_link_libraries(scrcpy_recv PUBLIC avcodec avformat avutil swscale swresample ${OPENCV_LIB})
 endif()
 
 add_custom_command(TARGET scrcpy_desktop POST_BUILD

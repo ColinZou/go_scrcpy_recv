@@ -1,11 +1,11 @@
 #include "scrcpy_ctrl_handler.h"
-#include "fmt/core.h"
 #include <stdint.h>
 #include <Windows.h>
 #include <WinSock2.h>
 #include <functional>
 #include <winbase.h>
 #include "utils.h"
+#include "logging.h"
 
 scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, SOCKET socket): device_id(dev_id), 
     client_socket(socket), 
@@ -52,9 +52,9 @@ void scrcpy_ctrl_socket_handler::stop() {
     this->keep_running = false;
 }
 void scrcpy_ctrl_socket_handler::send_msg(char *msg_id, uint8_t *data, int data_len) {
-    fmt::print("Acquiring a lock for sending message msg_id={} for device {}\n", msg_id, this->device_id->c_str());
+    debug_logf("Acquiring a lock for sending message msg_id=%s for device %s\n", msg_id, this->device_id->c_str());
     std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
-    fmt::print("Lock granted for sending message msg_id={} for device {}\n", msg_id, this->device_id->c_str());
+    debug_logf("Lock granted for sending message msg_id=%s for device %s\n", msg_id, this->device_id->c_str());
     auto msg = new scrcpy_ctrl_msg();
     char* msg_id_copy = (char*)malloc(sizeof(char) * strlen(msg_id) + 1);
     char* data_copy = (char*)malloc(sizeof(char) * data_len);
@@ -86,7 +86,7 @@ void scrcpy_ctrl_socket_handler::cleanup_trash() {
         cleaned_size ++;
     }
     if (cleaned_size > 0) {
-        fmt::print("Released {} trashed ctrl msg\n", cleaned_size);
+        debug_logf("Released %d trashed ctrl msg\n", cleaned_size);
     }
 }
 int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string, int, int)> callback) {
@@ -110,18 +110,18 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
         }
         {
             std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
-            fmt::print("{} messages pending for device {} \n", queue_size, this->device_id->c_str());
+            debug_logf("%d messages pending for device %s \n", queue_size, this->device_id->c_str());
             for (int i = 0; i < queue_size; i++) {
                 auto msg = this->outgoing_queue->back();
                 this->outgoing_queue->pop_back();
                 //send it
                 int status = send(this->client_socket, msg->data, msg->length, 0);
                 if (status == SOCKET_ERROR) {
-                    fmt::print("Failed to send msg_id={} {} bytes of ctrl msg to device {}\n", msg->msg_id, msg->length, this->device_id->c_str());
+                    debug_logf("Failed to send msg_id=%s %d bytes of ctrl msg to device %s\n", msg->msg_id, msg->length, this->device_id->c_str());
                 } else if(status == msg->length) {
-                    fmt::print("Sent msg_id={} to device {} with {} bytes\n", msg->msg_id, msg->length, this->device_id->c_str());
+                    debug_logf("Sent msg_id=%s to device %s with %d bytes\n", msg->msg_id, this->device_id->c_str(), msg->length);
                 } else {
-                    fmt::print("Unexpected status {} when trying to send msg_id={} with {} bytes data to device {}\n", status, msg->msg_id, msg->length, this->device_id->c_str());
+                    debug_logf("Unexpected status %d when trying to send msg_id=%s with %s bytes data to device %s\n", status, msg->msg_id, msg->length, this->device_id->c_str());
                 }
                 if(NULL != callback) {
                     callback(std::string(this->device_id->c_str()), std::string(msg->msg_id), status, msg->length);

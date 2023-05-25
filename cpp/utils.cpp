@@ -5,7 +5,8 @@
 #include <windows.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include "fmt/core.h"
+#include <string>
+#include "logging.h"
 
 int string_compartor(void* a, void* b) {
 	return _strcmpi((char*)a, (char*)b);
@@ -45,21 +46,22 @@ void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_i
 	}
 }
 void print_bytes(char *data, int length) {
-    std::string buffer;
+    char *buffer = (char*)malloc(sizeof(char) * 128);
     bool has_data = false;
     for(int i = 0; i < length; i++) {
         int index = i%8;
         if (index == 0) {
             if (has_data) {
-                fmt::print("{}\n", buffer);
+                debug_logf("%s\n", buffer);
             }
-            buffer = "";
+            memset(buffer, 0, 128);
             has_data = false;
         }
-        buffer = fmt::format("{}{}{:#04x}", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
+        sprintf(buffer, "%s%s0x%02X", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
         has_data = true;
     }
     if (has_data) {
-        fmt::print("{}\n", buffer);
+        debug_logf("%s\n", buffer);
     }
+    free(buffer);
 }
