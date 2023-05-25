@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "model.h"
 #include "socket_lib.h"
+#include "logging.h"
 #include "scrcpy_recv/scrcpy_recv.h"
 
 using namespace std;
@@ -18,6 +19,7 @@ SCRCPY_API void scrcpy_start_receiver(scrcpy_listener_t handle, char* listen_add
 
 SCRCPY_API void scrcpy_shutdown_receiver(scrcpy_listener_t handle) {
 	static_cast<socket_lib*>(handle)->shutdown_svr();
+    logging_cleanup();
 }
 
 SCRCPY_API void scrcpy_set_image_size(scrcpy_listener_t handle, char* device_id, int width, int height) {
@@ -62,4 +64,8 @@ SCRCPY_API void scrcpy_device_set_ctrl_msg_send_callback(scrcpy_listener_t handl
 
 SCRCPY_API void scrcpy_device_send_ctrl_msg(scrcpy_listener_t handle, char *device_id, char *msg_id, uint8_t *data, int data_len) {
 	static_cast<socket_lib*>(handle)->send_ctrl_msg(device_id, msg_id, data, data_len);
+}
+
+SCRCPY_API void scrcpy_set_device_disconnected_callback(scrcpy_listener_t handle, scrcpy_device_disconnected_callback callback) {
+
 }

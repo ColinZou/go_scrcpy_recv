@@ -133,6 +133,13 @@ end:
 			debug_logf("Failed to close client connection: %d\n", WSAGetLastError());
 		}
 	}
+    // invoke shutdown callback
+    if(this->disconnected_callback) {
+        debug_logf("Invoking disconnected_callback for device %s connection_type %s\n", connection->device_id->c_str(), connection->connection_type->c_str());
+        this->disconnected_callback((char *) this->m_token.c_str(), 
+                (char *)connection->device_id->c_str(), 
+                (char *)connection->connection_type->c_str());
+    }
     if (connection->connection_type) {
         debug_logf("Cleaning connection type data of connection_type=%s\n", connection->connection_type->c_str());
         delete connection->connection_type;
@@ -406,3 +413,6 @@ void socket_lib::internal_on_ctrl_msg_sent_callback(std::string device_id, std::
     callback_entry->second((char *)this->m_token.c_str(), (char *)device_id.c_str(), (char *)msg_id.c_str(), status, data_len);
 }
 
+void socket_lib::set_device_disconnected_callback(scrcpy_device_disconnected_callback callback) {
+    this->disconnected_callback = callback;
+}

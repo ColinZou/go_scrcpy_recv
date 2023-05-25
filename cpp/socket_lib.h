@@ -119,6 +119,10 @@ public:
      * @param       data_len        the length of the data
      */
     void send_ctrl_msg(char *device_id, char *msg_id, uint8_t* data, int data_len);
+    /**
+     * set the disconnected event handler
+     */
+    void set_device_disconnected_callback(scrcpy_device_disconnected_callback callback);
 	
 private:
 	SOCKET listen_socket = INVALID_SOCKET;
@@ -137,7 +141,7 @@ private:
     std::mutex ctrl_sending_callback_map_lock;
 
 	frame_img_processor *callback_handler = new frame_img_processor();
-
+    scrcpy_device_disconnected_callback disconnected_callback = nullptr;
     
 
 	// internal callback handling

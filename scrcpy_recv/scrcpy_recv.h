@@ -34,6 +34,10 @@ typedef void (*scrcpy_device_info_callback)
 // status will be -9999 if there's no ctrl socket connected.
 typedef void (*scrcpy_device_ctrl_msg_send_callback) (char* token, char *device_id, char *msg_id, int status, int data_len);
 
+// callbak for device disconnected notification
+// con_type will be video/ctrl to specify if the connection a video or ctrl channel connection
+typedef void (*scrcpy_device_disconnected_callback) (char* token, char *device_id, char *con_type);
+
 /**
  * create a new handle
  *
@@ -136,6 +140,13 @@ SCRCPY_API void scrcpy_device_set_ctrl_msg_send_callback(scrcpy_listener_t handl
  * @param       data_len        length of the data
  */
 SCRCPY_API void scrcpy_device_send_ctrl_msg(scrcpy_listener_t handle, char *device_id, char *msg_id, uint8_t *data, int data_len);
+
+/**
+ * Set the callback handler for a device's disconnected
+ * @param   handler             the receiver's handle
+ * @param   callback            the callback method
+ */
+SCRCPY_API void scrcpy_set_device_disconnected_callback(scrcpy_listener_t handle, scrcpy_device_disconnected_callback callback);
 
 #ifdef __cplusplus
 }
