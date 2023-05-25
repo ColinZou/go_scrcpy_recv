@@ -193,7 +193,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
 	fmt::print("Trying to add param for device {}, lock acquired, already had {} allocted frames\n", device_id, buffed_frames);
 	frame_img_callback_params* params = NULL;
 	if (buffed_frames >= MAX_PENDING_FRAMES ) {
-		// release a frame from front
+		// release a frame from back 
 		params = handler_container->frames.back();
 		handler_container->frames.pop_back();
 	} else {

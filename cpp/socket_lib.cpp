@@ -10,15 +10,25 @@
 #include <mutex>
 #include <map>
 #include "model.h"
+#include "utils.h"
 #include "frame_img_callback.h"
+#include "scrcpy_ctrl_handler.h"
 
-using namespace std;
+#ifndef SCRCPY_CTRL_SOCKET_NAME
+#define SCRCPY_CTRL_SOCKET_NAME "ctrl"
+#define SCRCPY_SOCKET_HEADER_SIZE 80 // 64 bytes name, 16 bytes type
+#define SCRCPY_HEADER_DEVICE_ID_LEN 64                                
+#define SCRCPY_HEADER_TYPE_LEN 16
+#endif //!SCRCPY_CTRL_SOCKET_NAME
 
 socket_lib::socket_lib(std::string token) : 
 	image_size_dict(new std::map<std::string, image_size*>()), 
 	original_image_size_dict(new std::map<std::string, image_size*>()),
 	device_info_callback_dict(new std::map<std::string, std::vector<scrcpy_device_info_callback>*>()),
-	m_token(token) {}
+	m_token(token), 
+    ctrl_socket_handler_map(new std::map<std::string, scrcpy_ctrl_socket_handler*>()),
+    ctrl_sending_callback_map(new std::map<std::string, scrcpy_device_ctrl_msg_send_callback>()){}
+
 void socket_lib::on_video_callback(char* device_id, uint8_t* frame_data, uint32_t frame_data_size, int w, int h, int raw_w, int raw_h) {
 	this->internal_video_frame_callback(device_id, frame_data, frame_data_size, w, h, raw_w, raw_h);
 }
@@ -64,19 +74,94 @@ void socket_lib::config_image_size(char* device_id, int width, int height) {
 	fmt::print("There're {} items inside image_size_dict\n", (long)(this->image_size_dict->size()));
 }
 
+std::string* socket_lib::read_socket_type(ClientConnection* connection) {
+    int buf_size = SCRCPY_SOCKET_HEADER_SIZE;
+    char data[SCRCPY_SOCKET_HEADER_SIZE];
+    char *device_id = (char*) malloc(SCRCPY_HEADER_DEVICE_ID_LEN * sizeof(char));
+    char *socket_type = (char*) malloc(SCRCPY_HEADER_TYPE_LEN * sizeof(char));
+    int received = recv(connection->client_socket, data, buf_size, 0);
+    fmt::print("received {}/{} bytes header\n", received, SCRCPY_SOCKET_HEADER_SIZE);
+    if (received != buf_size) {
+        return nullptr;
+    }
+
+    array_copy_to2(data, device_id, 0, 0, SCRCPY_HEADER_DEVICE_ID_LEN);
+    array_copy_to2(data, socket_type, SCRCPY_HEADER_DEVICE_ID_LEN, 0, SCRCPY_HEADER_TYPE_LEN);
+    
+    connection->device_id = new std::string(device_id);
+
+    connection->connection_type = new std::string(socket_type);
+    
+    fmt::print("Received device id={}, socket type={}\n", connection->device_id->c_str(), connection->connection_type->c_str());
+    return connection->connection_type;
+}
+
+bool socket_lib::is_controll_socket(ClientConnection* connection) {
+    auto type = this->read_socket_type(connection);
+    bool result = strcmp(type->c_str(), SCRCPY_CTRL_SOCKET_NAME) == 0;
+    fmt::print("Is received socket type {} == {} for socket {} ? {}\n", type->c_str(), SCRCPY_CTRL_SOCKET_NAME, connection->client_socket, result);
+    return result;
+}
+
 int socket_lib::handle_connetion(ClientConnection* connection) {
 	SOCKET client_socket = connection->client_socket;
 	int result = 0;
-	result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
+    bool is_ctrl_socket = this->is_controll_socket(connection);
+    //check if it is a controll socket
+    if (!is_ctrl_socket) {
+        fmt::print("{} is a video socket for device {} \n", connection->client_socket, connection->device_id->c_str());
+	    result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
+    } else {
+        fmt::print("{} is a ctrl socket for device {} \n", connection->client_socket, connection->device_id->c_str());
+        auto handler = new scrcpy_ctrl_socket_handler(connection->device_id, connection->client_socket);
+        {
+            std::lock_guard<std::mutex> lock(this->ctrl_socket_handler_map_lock);
+            this->ctrl_socket_handler_map->emplace(std::string(connection->device_id->c_str()), handler);
+        }
+        std::function<void(std::string, std::string, int, int)> callback = [this](std::string device_id, std::string msg_id, int status, int data_len) {
+            this->internal_on_ctrl_msg_sent_callback(device_id, msg_id, status, data_len);
+        };
+        result = handler->run(callback);
+        delete handler;
+    }
 	goto end;
 end:
 	if (client_socket != INVALID_SOCKET) {
+        fmt::print("Shutdown {}\n", client_socket);
 		result = shutdown(client_socket, SD_SEND);
 		if (result == SOCKET_ERROR) {
 			fmt::print("Failed to close client connection: {}\n", WSAGetLastError());
 		}
 	}
-	free(connection);
+    if (connection->connection_type) {
+        fmt::print("Cleaning connection type data of connection_type={}\n", connection->connection_type->c_str());
+        delete connection->connection_type;
+        connection->connection_type = nullptr;
+    }
+    if(connection->device_id) {
+        std::string device_id_str = std::string(connection->device_id->c_str());
+        if (is_ctrl_socket) {
+            std::lock_guard<std::mutex> lock(this->ctrl_socket_handler_map_lock);
+            auto item = this->ctrl_socket_handler_map->find(device_id_str);
+            if (item != this->ctrl_socket_handler_map->end()) {
+                fmt::print("Removing ctrl socket of {}  from map\n", connection->device_id->c_str());
+                this->ctrl_socket_handler_map->erase(item);
+            }
+        } else {
+            // tell ctrl socket to stop
+            auto item = this->ctrl_socket_handler_map->find(device_id_str);
+            if (item != this->ctrl_socket_handler_map->end()) {
+                fmt::print("Telling ctrl socket of {}  to stop \n", connection->device_id->c_str());
+                item->second->stop();
+            }
+        }
+        fmt::print("Cleaning device id data of device_id={}\n", connection->device_id->c_str());
+        delete connection->device_id;
+        connection->device_id = nullptr;
+    }
+    fmt::print("Deleting connection\n");
+	delete connection;
+    fmt::print("Cleaned up connection\n");
 	return result;
 }
 
@@ -197,6 +282,7 @@ socket_lib::~socket_lib() {
 	free_image_size_dict(this->image_size_dict);
 	free_image_size_dict(this->original_image_size_dict);
 	if (this->device_info_callback_dict) {
+        std::lock_guard<std::mutex> lock(this->device_info_callback_dict_lock);
 		auto dict = this->device_info_callback_dict;
 		auto first = dict->begin();
 		while (first != dict->end()) {
@@ -208,6 +294,17 @@ socket_lib::~socket_lib() {
 		delete this->device_info_callback_dict;
 		this->device_info_callback_dict = nullptr;
 	}
+    if (this->ctrl_socket_handler_map) {
+        this->ctrl_socket_handler_map->clear();
+        delete this->ctrl_socket_handler_map;
+        this->ctrl_socket_handler_map = nullptr;
+    }
+    if (this->ctrl_sending_callback_map) {
+        std::lock_guard<std::mutex> lock(this->ctrl_sending_callback_map_lock);
+        this->ctrl_sending_callback_map->clear();
+        delete this->ctrl_sending_callback_map;
+        this->ctrl_sending_callback_map = nullptr;
+    }
 }
 
 image_size* socket_lib::internal_get_image_size(std::map<std::string, image_size*>* dict, std::string device_id) {
@@ -277,4 +374,35 @@ void socket_lib::invoke_device_info_callbacks(char* device_id, int screen_width,
 	}
 }
 
+void socket_lib::set_ctrl_msg_send_callback(char *device_id, scrcpy_device_ctrl_msg_send_callback callback) {
+    std::lock_guard<std::mutex> lock(this->ctrl_sending_callback_map_lock);
+    auto result = this->ctrl_sending_callback_map->emplace(std::string(device_id), callback);
+    if (!result.second) {
+        result.first->second = callback;
+    }
+    fmt::print("Set ctrl msg sending handler for device {}, alrady existed? {} (will update if already existed)\n", device_id, result.second ? "no":"yes");
+}
+
+void socket_lib::send_ctrl_msg(char *device_id, char *msg_id, uint8_t* data, int data_len) {
+   auto device_id_str = std::string(device_id);
+   auto msg_id_str = std::string(msg_id);
+   auto entry = this->ctrl_socket_handler_map->find(std::string(device_id));
+   if(entry == this->ctrl_socket_handler_map->end()) {
+       fmt::print("No control socket connected for device {}\n", device_id);
+       this->internal_on_ctrl_msg_sent_callback(device_id_str, msg_id_str, -9999, data_len);
+       return;
+   }
+   fmt::print("Sending control msg id={}, data_len={} for device={}\n", msg_id, data_len, device_id);
+   entry->second->send_msg(msg_id, data, data_len);
+}
+
+void socket_lib::internal_on_ctrl_msg_sent_callback(std::string device_id, std::string msg_id, int status, int data_len) {
+    auto callback_entry = this->ctrl_sending_callback_map->find(device_id);
+    if (callback_entry == this->ctrl_sending_callback_map->end()) {
+        fmt::print("Could not find a callback handler for device {}'s ctrl sending callback\n'", device_id.c_str());
+        return;
+    }
+    fmt::print("Invoking ctrl sending callback, device_id={}, msg_id={}, data_len={}, sending_status={}\n", device_id.c_str(), msg_id.c_str(), data_len, status);
+    callback_entry->second((char *)this->m_token.c_str(), (char *)device_id.c_str(), (char *)msg_id.c_str(), status, data_len);
+}
 

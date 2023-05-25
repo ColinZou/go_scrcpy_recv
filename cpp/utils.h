@@ -31,4 +31,15 @@ int to_int(char* from_data, int total_length, int from_index, int size);
 * @param	copy_length			data length for copying from src into dest
 */
 void array_copy_to(char* src, char* dest, const int dest_start_index, const int copy_length);
+
+/*
+* copy data from one array to another
+* @param	src					data source array
+* @param	dest				destination array
+* @param    src_start_index     src start index
+* @param	dest_start_index	start index of the dest array for filling data
+* @param	copy_length			data length for copying from src into dest
+*/
+void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_index, int copy_length);
+void print_bytes(char *data, int length);
 #endif // !SCRCPY_UTILS

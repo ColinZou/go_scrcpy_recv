@@ -15,5 +15,10 @@ extern void goScrcpyDeviceInfoCallback(char*, char*, int, int);
 void c_goScrcpyDeviceInfoCallback(char *token, char *device_id, int width, int height) {
     goScrcpyDeviceInfoCallback(token, device_id, width, height);
 }
+
+extern void goScrcpyCtrlSendCallback(char*, char*, char*, int, int);
+void c_goScrcpyCtrlSendCallback(char *token, char *device_id, char *msg_id, int status, int data_len) {
+    goScrcpyCtrlSendCallback(token, device_id, msg_id, status, data_len);
+}
 */
 import "C"

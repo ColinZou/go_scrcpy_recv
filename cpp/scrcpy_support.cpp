@@ -55,3 +55,11 @@ SCRCPY_API void scrcpy_device_info_register_callback(scrcpy_listener_t handle, c
 SCRCPY_API void scrcpy_device_info_unregister_all_callbacks(scrcpy_listener_t handle, char *device_id) {
 	static_cast<socket_lib*>(handle)->unregister_all_device_info_callbacks(device_id);
 }
+
+SCRCPY_API void scrcpy_device_set_ctrl_msg_send_callback(scrcpy_listener_t handle, char *device_id, scrcpy_device_ctrl_msg_send_callback callback) {
+	static_cast<socket_lib*>(handle)->set_ctrl_msg_send_callback(device_id, callback);
+}
+
+SCRCPY_API void scrcpy_device_send_ctrl_msg(scrcpy_listener_t handle, char *device_id, char *msg_id, uint8_t *data, int data_len) {
+	static_cast<socket_lib*>(handle)->send_ctrl_msg(device_id, msg_id, data, data_len);
+}

@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include "fmt/core.h"
 
 int string_compartor(void* a, void* b) {
 	return _strcmpi((char*)a, (char*)b);
@@ -37,4 +38,28 @@ void array_copy_to(char* src, char* dest, const int dest_start_index, const int 
 	for (int i = 0; i < copy_length; i++) {
 		dest[dest_start_index + i] = src[i];
 	}
+}
+void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_index, int copy_length) {
+	for (int i = 0; i < copy_length; i++) {
+		dest[dest_start_index + i] = src[src_start_index + i];
+	}
+}
+void print_bytes(char *data, int length) {
+    std::string buffer;
+    bool has_data = false;
+    for(int i = 0; i < length; i++) {
+        int index = i%8;
+        if (index == 0) {
+            if (has_data) {
+                fmt::print("{}\n", buffer);
+            }
+            buffer = "";
+            has_data = false;
+        }
+        buffer = fmt::format("{}{}{:#04x}", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
+        has_data = true;
+    }
+    if (has_data) {
+        fmt::print("{}\n", buffer);
+    }
 }

@@ -13,7 +13,7 @@ echo Building cpp &&^
 cd %CPP_SRC_FOLDER% &&^
 IF NOT EXIST release (mkdir release) else (echo relase folder is ready && DEL /S /F /Q release) &&^
 echo clean built binary first && del /S /F /Q %LIB_BIN_TARGET_FOLDER% &&^
-cd release && cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . --target scrcpy_recv --config Release &&^
+cd release && cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . --target scrcpy_recv scrcpy_desktop --config Release &&^
 echo CPP build succeed &&^
 echo COPY BINARYIES FROM %CPP_SRC_FOLDER%\release\Release to %LIB_BIN_TARGET_FOLDER% &&^
 xcopy /Y Release\*.dll %LIB_BIN_TARGET_FOLDER% &&^
@@ -21,4 +21,4 @@ xcopy /Y Release\*.lib %LIB_BIN_TARGET_FOLDER% &&^
 echo ************************ &&^
 echo Building go example code &&^
 go build -C %GO_SRC_FOLDER% -o build\basic.exe examples\basic.go &&^
-XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is %SCRIPT_DIR%\build\basic.exe
+XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is %GO_SRC_FOLDER%\build\basic.exe

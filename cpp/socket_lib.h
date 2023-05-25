@@ -7,6 +7,7 @@
 #include "model.h"
 #include <vector>
 #include "frame_img_callback.h"
+#include "scrcpy_ctrl_handler.h"
 /*
 * Client connection for the video socket
 */
@@ -15,7 +16,9 @@ typedef struct ClientConnection {
 	struct connection_buffer_config* buffer_cfg;
 	// socket handle
 	SOCKET client_socket;
-}ClientConnection;
+    std::string *connection_type = nullptr;
+    std::string *device_id = nullptr;
+} ClientConnection;
 
 // socket lib for handling server socket and clietn connection
 class socket_lib : video_decode_callback {
@@ -102,6 +105,20 @@ public:
 	* @param		device_id		the device's indentifier
 	*/
 	void unregister_all_device_info_callbacks(char *device_id);
+    /**
+     * set the callback handler of a device's ctrl message sending
+     * @param       device_id       the device's identifier
+     * @param       callback        the callback handler
+     */
+    void set_ctrl_msg_send_callback(char *device_id, scrcpy_device_ctrl_msg_send_callback callback);
+    /**
+     * send ctrl message to  device
+     * @param       device_id       the device's identifier
+     * @param       msg_id          the internal msg id for the sender
+     * @param       data            the data to send
+     * @param       data_len        the length of the data
+     */
+    void send_ctrl_msg(char *device_id, char *msg_id, uint8_t* data, int data_len);
 	
 private:
 	SOCKET listen_socket = INVALID_SOCKET;
@@ -110,11 +127,19 @@ private:
 	std::map<std::string, image_size*>* image_size_dict = nullptr;
 	std::map<std::string, image_size*>* original_image_size_dict = nullptr;
 	std::map<std::string, std::vector<scrcpy_device_info_callback>*>* device_info_callback_dict = nullptr;
+    std::map<std::string, scrcpy_ctrl_socket_handler*>* ctrl_socket_handler_map = nullptr;
+    std::map<std::string, scrcpy_device_ctrl_msg_send_callback> *ctrl_sending_callback_map = nullptr;
 
 	std::mutex keep_accept_connection_lock;
 	std::mutex image_size_lock;
 	std::mutex device_info_callback_dict_lock;
+    std::mutex ctrl_socket_handler_map_lock;
+    std::mutex ctrl_sending_callback_map_lock;
+
 	frame_img_processor *callback_handler = new frame_img_processor();
+
+    
+
 	// internal callback handling
 	void internal_video_frame_callback(std::string device_id, uint8_t* frame_data, uint32_t frame_data_size, int w, int h, int raw_w, int raw_h);
 	// release image size config
@@ -132,5 +157,19 @@ private:
 	* @param		screen_height	original screen height
 	*/
 	void invoke_device_info_callbacks(char* device_id, int screen_width, int screen_height);
+    /**
+     * read socket type, it should return video/ctrl
+     * @param       connection          the client connection
+     * @return  socket type string
+     */
+    std::string* read_socket_type(ClientConnection* connection);
+    /**
+     * detect if a connection is a controll socket
+     * @param       connection          the client connection
+     * @return      true if the connection is a ctrl connection, false otherwise
+     */
+    bool is_controll_socket(ClientConnection* connection);
+
+    void internal_on_ctrl_msg_sent_callback(std::string device_id, std::string msg_id, int status, int data_len);
 };
 #endif // !SCRCPY_SOCKET_LIB
