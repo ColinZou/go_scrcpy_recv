@@ -10,7 +10,6 @@ Open source software used(check lib folder):
 
 1. ffmpeg
 2. opencv
-3. fmt
 
 ## How to use it?
 ```go get -u github.com/ColinZou/go_scrcpy_recv@0.2.0```
@@ -18,6 +17,13 @@ Open source software used(check lib folder):
 Check ```examples/basic.go``` for more details. 
 
 ## How to build and run?
+0. install dependencies with vcpkg
+```bash
+vcpkg install --recurse --triplet x64-windows-static ffmpeg[avcodec] ffmpeg[x264] ffmpeg[swscale] ffmpeg[avresample] opencv4[png]
+```
+
+DO NOT FORGET TO SET VCPKG_ROOT to vcpkg folder.
+
 1. run ```script\build.bat```
 
 2. run build\basic.exe

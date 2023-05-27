@@ -50,7 +50,7 @@ typedef struct device_frame_img_callback {
 	// thread handle for the device
 	std::thread::native_handle_type thread_handle = NULL;
 	// handlers
-	frame_callback_handler* handlers = NULL;
+	frame_callback_handler* handlers = nullptr;
 	// lock object
 	std::mutex lock;
 	// buffered frames

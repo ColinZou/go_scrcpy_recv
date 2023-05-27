@@ -16,11 +16,9 @@ class logger_config {
         void init_debug_status() {
             int env_value_len = 16;
             size_t read_len;
-            char *env_value = (char*) malloc(env_value_len * sizeof(char));
-            _dupenv_s(&env_value, &read_len, "SCRCPY_DEBUG");
+            char *env_value = std::getenv("SCRCPY_DEBUG");
             printf("SCRCPY_DEBUG=%s[%llu]\n", env_value, read_len);
             m_enabled = env_value != nullptr && strlen(env_value) >= 0;
-            free(env_value);
             printf("SCRCPY_DEBUG=%s, debug output enabled? %s\n", env_value, m_enabled? "yes":"no");
         }
     private:

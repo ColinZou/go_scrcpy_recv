@@ -101,13 +101,16 @@ void config_from_env() {
     const char* env_name = "SCRCPY_SAVE_FRAMES";
     auto env_value = std::getenv(env_name);
     if (!env_value || std::string(env_value).empty()){
+        printf("No env SCRCPY_SAVE_FRAMES configured\n");
         return;
     }
+    printf("Env SCRCPY_SAVE_FRAMES=%s\n", env_value);
     auto env_value_str = std::string(env_value);
     std::transform(env_value_str.begin(), env_value_str.end(), env_value_str.begin(), ::tolower);
-    if (strcmp(env_value_str.c_str(), "y")) {
+    if (strcmp(env_value_str.c_str(), "y") == 0) {
         save_frame_images = true;
     }
+    printf("Will save frames to image files? %s\n", save_frame_images ? "YES": "NO");
 }
 int main(){
 	char address[] = "27183";

@@ -3,46 +3,40 @@
 #
 cmake_minimum_required (VERSION 3.8)
 
-set(FFMPEG_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../lib/ffmpeg-n5.1.3-win64-gpl-shared-5.1")
-set(OPENCV_PREBUILT_HOME "${CMAKE_CURRENT_SOURCE_DIR}/../lib/opencv")
-set(OPENCV_CUSTOM_HOME "${CMAKE_CURRENT_SOURCE_DIR}/../lib/opencv-customized")
-set(GO_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." )
+IF (DEFINED ENV{VCPKG_ROOT})
+    SET(VCPKG_ROOT $ENV{VCPKG_ROOT})
+ELSE()
+    SET(VCPKG_ROOT D:/vcpkg)
+ENDIF()
 
+SET(VCPKG_TARGET_TRIPLET "x64-windows-static")
+SET(CMAKE_TOOLCHAIN_FILE ${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
+
+set(GO_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." )
 
 add_definitions(-DWIN_DLL=1)
 
-IF (DEFINED ENV{OPENCV_CUSTOMIZED})
-    SET (OPENCV_VC vc17)
-    SET (OPENCV_DLL opencv_core470 opencv_imgcodecs470)
-    SET (OPENCV_DLL_DEBUG opencv_core470d opencv_imgcodecs470d)
-    SET(OPENCV_HOME ${OPENCV_CUSTOM_HOME})
-ELSE()
-    SET (OPENCV_VC vc16)
-    SET (OPENCV_DLL opencv_world470)
-    SET (OPENCV_DLL_DEBUG opencv_world470d)
-    SET(OPENCV_HOME ${OPENCV_PREBUILT_HOME})
-ENDIF()
+project ("scrcpy_desktop" LANGUAGES CXX C)
 
-IF (${CMAKE_BUILD_TYPE} STREQUAL Debug)
-    SET(DEBUG_LIB_POSTFIX d)
-    SET(OPENCV_LIB ${OPENCV_DLL_DEBUG})
-ELSE()
-    SET(OPENCV_LIB ${OPENCV_DLL})
-    SET(DEBUG_LIB_POSTFIX )
-ENDIF()
+# static build
+set(CMAKE_CXX_FLAGS_RELEASE "/MT")
+set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 
-MESSAGE("OpenCV home will be ${OPENCV_HOME}")
+SET(VCPKG_INCLUDE ${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/include)
+SET(VCPKG_LD_DIR ${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib)
 
-include_directories(${FFMPEG_ROOT}/include ${CMAKE_CURRENT_SOURCE_DIR} ${OPENCV_HOME}/include ${GO_LIB_ROOT})
+include_directories(${VCPKG_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR} ${GO_LIB_ROOT})
 
-link_directories(${FFMPEG_ROOT}/lib ${OPENCV_HOME}/x64/${OPENCV_VC}/lib)
+link_directories(${VCPKG_LD_DIR})
+
+SET(OPENCV_LIB bcrypt lzma tiff libpng16 turbojpeg jpeg opencv_core4 opencv_imgcodecs4 opencv_imgproc4)
+SET(FFMPEG_LD_LIBS mfuuid strmbase zlib libwebp libsharpyuv avcodec avutil libx264 swscale swresample)
 
 # Enable Hot Reload for MSVC compilers if supported.
 if (POLICY CMP0141)
   cmake_policy(SET CMP0141 NEW)
 endif()
 
-project ("scrcpy_desktop" LANGUAGES CXX C)
 
 add_library(scrcpy_recv SHARED
     "scrcpy_support.h" "scrcpy_support.cpp"
@@ -77,74 +71,10 @@ if (CMAKE_VERSION VERSION_GREATER 3.12)
 endif()
 
 if(WIN32)
-  target_link_libraries(scrcpy_desktop PUBLIC wsock32 ws2_32 avcodec avutil swscale ${OPENCV_LIB})
-  target_link_libraries(scrcpy_recv PUBLIC wsock32 ws2_32 avcodec avutil swscale ${OPENCV_LIB})
+    target_link_libraries(scrcpy_desktop PUBLIC wsock32 ws2_32 ${FFMPEG_LD_LIBS} ${OPENCV_LIB})
+    target_link_libraries(scrcpy_recv PUBLIC wsock32 ws2_32 ${FFMPEG_LD_LIBS} ${OPENCV_LIB})
 else()
-  target_link_libraries(scrcpy_desktop PUBLIC avcodec avutil swscale ${OPENCV_LIB})
-  target_link_libraries(scrcpy_recv PUBLIC avcodec avutil swscale ${OPENCV_LIB})
+    target_link_libraries(scrcpy_desktop PUBLIC ${FFMPEG_LD_LIBS} ${OPENCV_LIB})
+    target_link_libraries(scrcpy_recv PUBLIC ${FFMPEG_LD_LIBS} ${OPENCV_LIB})
 endif()
 
-add_custom_command(TARGET scrcpy_desktop POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/avcodec-59.dll"
-        $<TARGET_FILE_DIR:scrcpy_desktop>)
-add_custom_command(TARGET scrcpy_desktop POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/avutil-57.dll"
-        $<TARGET_FILE_DIR:scrcpy_desktop>)
-add_custom_command(TARGET scrcpy_desktop POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/swscale-6.dll"
-        $<TARGET_FILE_DIR:scrcpy_desktop>)
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/swresample-4.dll"
-        $<TARGET_FILE_DIR:scrcpy_desktop>)
-
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/avcodec-59.dll"
-        $<TARGET_FILE_DIR:scrcpy_recv>)
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/avutil-57.dll"
-        $<TARGET_FILE_DIR:scrcpy_recv>)
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/swscale-6.dll"
-        $<TARGET_FILE_DIR:scrcpy_recv>)
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${FFMPEG_ROOT}/bin/swresample-4.dll"
-        $<TARGET_FILE_DIR:scrcpy_recv>)
-
-
-IF (DEFINED ENV{OPENCV_CUSTOMIZED})
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    "${OPENCV_HOME}/x64/${OPENCV_VC}/bin/opencv_core470${DEBUG_LIB_POSTFIX}.dll"
-        $<TARGET_FILE_DIR:scrcpy_desktop>)
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    "${OPENCV_HOME}/x64/${OPENCV_VC}/bin/opencv_imgcodecs470${DEBUG_LIB_POSTFIX}.dll"
-        $<TARGET_FILE_DIR:scrcpy_desktop>)
-
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    "${OPENCV_HOME}/x64/${OPENCV_VC}/bin/opencv_core470${DEBUG_LIB_POSTFIX}.dll"
-        $<TARGET_FILE_DIR:scrcpy_recv>)
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    "${OPENCV_HOME}/x64/${OPENCV_VC}/bin/opencv_imgcodecs470${DEBUG_LIB_POSTFIX}.dll"
-        $<TARGET_FILE_DIR:scrcpy_recv>)
-ELSE()
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    "${OPENCV_HOME}/x64/${OPENCV_VC}/bin/${OPENCV_LIB}.dll"
-        $<TARGET_FILE_DIR:scrcpy_desktop>)
-
-add_custom_command(TARGET scrcpy_recv POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy
-    "${OPENCV_HOME}/x64/${OPENCV_VC}/bin/${OPENCV_LIB}.dll"
-        $<TARGET_FILE_DIR:scrcpy_recv>)
-ENDIF()

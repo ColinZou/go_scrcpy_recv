@@ -185,7 +185,7 @@ int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
 			continue;
 		}
 		debug_logf("New connection accpeted:%p\n", client_socket);
-		ClientConnection* connection = NULL;
+		ClientConnection* connection = nullptr;
 		connection = new ClientConnection();
 		if (!connection) {
 			debug_logf("No enough memory to accepting incoming connection %p\n", client_socket);
@@ -204,7 +204,7 @@ int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
 int socket_lib::startup(char* address, int network_buffer_size_kb, int video_packet_buffer_size_kb) {
 	WSADATA wsaData;
 	int result;
-	struct addrinfo* addr_result = NULL;
+	struct addrinfo* addr_result = nullptr;
 	struct addrinfo addr_hints;
 	struct connection_buffer_config cfg = connection_buffer_config{
 		network_buffer_size_kb,
