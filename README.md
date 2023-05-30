@@ -17,18 +17,28 @@ Open source software used(check lib folder):
 Check ```examples/basic.go``` for more details. 
 
 ## How to build and run?
-0. install dependencies with vcpkg
+
+1. install ms build tool
+
+You also need to have Windows Kits and Visual Studio(Community is ok) installed. Just go to [download visualstudio installer](https://visualstudio.microsoft.com/downloads/). And make sure "Desktop development with C++" is checked before you hit install.
+
+2. install cmake
+
+You need to download from [here](https://cmake.org). Making sure cmake.exe is in your path before you move on.
+
+3. install dependencies with vcpkg
+
 ```bash
 vcpkg install --recurse --triplet x64-windows-static ffmpeg[avcodec] ffmpeg[x264] ffmpeg[swscale] ffmpeg[avresample] opencv4[png]
 ```
 
 DO NOT FORGET TO SET VCPKG_ROOT to vcpkg folder.
 
-1. run ```script\build.bat```
+4. run ```script\build.bat```
 
-2. run build\basic.exe
+5. run build\basic.exe
 
-3. run scripts\adb-prepare.ps1 in powershell
+6. run scripts\adb-prepare.ps1 in powershell
 
 ## Note for running the example
 
