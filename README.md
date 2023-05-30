@@ -12,7 +12,7 @@ Open source software used(check lib folder):
 2. opencv
 
 ## How to use it?
-```go get -u github.com/ColinZou/go_scrcpy_recv@0.2.0```
+```go get -u github.com/ColinZou/go_scrcpy_recv@0.2.2```
 
 Check ```examples/basic.go``` for more details. 
 
