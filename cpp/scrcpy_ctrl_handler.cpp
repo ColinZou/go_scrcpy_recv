@@ -59,7 +59,7 @@ void scrcpy_ctrl_socket_handler::send_msg(char *msg_id, uint8_t *data, int data_
     char* msg_id_copy = (char*)malloc(sizeof(char) * strlen(msg_id) + 1);
     char* data_copy = (char*)malloc(sizeof(char) * data_len);
     array_copy_to(msg_id, msg_id_copy, 0, strlen(msg_id));
-    array_copy_to(data_copy, (char*)data, 0, data_len);
+    array_copy_to((char*)data, data_copy, 0, data_len);
     msg->msg_id = msg_id_copy;
     msg->data = data_copy;
     msg->length = data_len;
@@ -120,6 +120,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
                     debug_logf("Failed to send msg_id=%s %d bytes of ctrl msg to device %s\n", msg->msg_id, msg->length, this->device_id->c_str());
                 } else if(status == msg->length) {
                     debug_logf("Sent msg_id=%s to device %s with %d bytes\n", msg->msg_id, this->device_id->c_str(), msg->length);
+                    print_bytes(msg->data, msg->length);
                 } else {
                     debug_logf("Unexpected status %d when trying to send msg_id=%s with %s bytes data to device %s\n", status, msg->msg_id, msg->length, this->device_id->c_str());
                 }

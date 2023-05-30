@@ -13,6 +13,7 @@ import (
 var listener scrcpy_recv.Receiver
 var frameNo = 1
 var saveFramesToFiles = false
+var deviceId string
 
 const imageFolder string = "images"
 
@@ -64,15 +65,25 @@ func configFromEnv() {
 func onDeviceDisconnected(token string, deviceId string, connectionType string) {
 	fmt.Printf("%s connection disconected for device %v, token=%v\n", connectionType, deviceId, token)
 }
-func run_server() {
-	deviceId := "session001"
-	receiver := scrcpy_recv.New(deviceId)
-	listener = receiver
-	configFromEnv()
+
+func registerEvents(deviceId string, receiver scrcpy_recv.Receiver) {
 	receiver.AddDeviceInfoCallback(deviceId, onDeviceInfoCallback)
 	receiver.AddFrameImageCallback(deviceId, onFrameImageCallback)
 	receiver.AddCtrlEventSendCallback(deviceId, onCtrlEventSent)
 	receiver.AddDeviceDisconnectedCallback(deviceId, onDeviceDisconnected)
+}
+func unregisterAllEvents(deviceId string, receiver scrcpy_recv.Receiver) {
+	receiver.RemoveAllDeviceInfoCallbacks(deviceId)
+	receiver.RemoveAllCtrlEventSendCallback(deviceId)
+	receiver.RemoveAllImageCallbacks(deviceId)
+	receiver.RemoveAllDisconnectedCallbck(deviceId)
+}
+
+func run_server() {
+	deviceId = "session001"
+	receiver := scrcpy_recv.New(deviceId)
+	listener = receiver
+	configFromEnv()
 	receiver.Startup("27183", 2048, 4096)
 	scrcpy_recv.Release(receiver)
 }
@@ -83,6 +94,8 @@ func main() {
 	for {
 		fmt.Println("What do you want?")
 		fmt.Println("0: shutdown scrcpy receiver socket")
+		fmt.Println("1: registerEvents")
+		fmt.Println("2: unregisterEvents")
 		fmt.Println("q: quit")
 		var choice string
 		n, err := fmt.Scanln(&choice)
@@ -94,9 +107,20 @@ func main() {
 			_ = fmt.Errorf("Input needed\n")
 			continue
 		}
-		if choice == "0" {
+		break_out := false
+		switch choice {
+		case "0":
 			listener.Shutdown()
-		} else if choice == "q" {
+		case "1":
+			registerEvents(deviceId, listener)
+		case "2":
+			unregisterAllEvents(deviceId, listener)
+		case "q":
+			break_out = true
+		default:
+			continue
+		}
+		if break_out {
 			break
 		}
 	}

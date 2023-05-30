@@ -35,7 +35,9 @@ typedef struct frame_img_callback_params {
 	int raw_h = -1;
 	// the param status, @see CALLBACK_PARAM_EMPTY CALLBACK_PARAM_PENDING CALLBACK_PARAM_SENDING CALLBACK_PARAM_SENT
 	int status = CALLBACK_PARAM_EMPTY;
-}frame_img_callback_params;
+    // buffer size
+    int buffer_size = 0;
+} frame_img_callback_params;
 
 // callback setup for a device
 typedef struct device_frame_img_callback {
@@ -81,6 +83,7 @@ private:
 	* the thread body
 	*/
 	int callback_thread(device_frame_img_callback* callback_item);
+    int calc_buffer_size(int frame_data_size, int current_buffer_size);
 
 public:
 	frame_img_processor();

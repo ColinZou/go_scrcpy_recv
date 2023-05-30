@@ -11,7 +11,6 @@
 #include "logging.h"
 
 extern "C" {
-	#include "libavutil/samplefmt.h"
 	#include "libavutil/timestamp.h"
 	#include "libavcodec/avcodec.h"
 	#include "libavformat/avformat.h"
@@ -25,7 +24,7 @@ using namespace cv;
 #define SCRCPY_DEIVCE_ID_LENGTH 64
 #define H264_HEAD_BUFFER_SIZE 12
 #define PACKET_CHUNK_BUFFER_SIZE 32*1024
-#define PNG_IMG_BUFFER 1024 * 1024 * 1
+#define PNG_IMG_BUFFER 1024 * 1024 * 4
 #endif
 typedef struct VideoHeader {
 	uint64_t pts;
@@ -480,7 +479,8 @@ int VideoDecoder::decode() {
 }
 int socket_decode(SOCKET socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
 	int *keep_running) {
-	std::vector<uchar> * image_buffer = new std::vector<uchar>(PNG_IMG_BUFFER);
+    auto buffer_size = buffer_cfg->video_packet_buffer_size_kb * 1024 * 2;
+	std::vector<uchar> * image_buffer = new std::vector<uchar>(buffer_size);
 	int result_code = 0;
 	VideoDecoder *decoder = new VideoDecoder(socket, callback, 
 		buffer_cfg, keep_running, 

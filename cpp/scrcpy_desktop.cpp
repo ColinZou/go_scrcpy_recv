@@ -58,38 +58,15 @@ std::vector<uint8_t> int_to_bytes(int paramInt)
 void device_info_callback(char *token, char* device_id, int w, int h) {
 	printf("device_info_callback device_id=%s screen_width=%d screen_height=%d\n", device_id, w, h);
     Sleep(1000);
-    printf("About to send a key event");
+    printf("About to send a key event\n");
     // try sending a ctrl msg
-    uint8_t ctrl_msg[14];
-    //clean first
-    for(int i = 0; i < 14; i++) {
-        ctrl_msg[i] = 0;
-    }
-    // action type = key event
-    ctrl_msg[0] = 0;
-    // action down 
-    ctrl_msg[1] = 0;
-
-    // keycode home = 3
-    auto home_key =  int_to_bytes(3);
-    ctrl_msg[2] = home_key[0];
-    ctrl_msg[3] = home_key[1];
-    ctrl_msg[4] = home_key[2];
-    ctrl_msg[5] = home_key[3];
-
-    // repeat
-    auto repeat_times = int_to_bytes(2);
-    ctrl_msg[6] = repeat_times[0];
-    ctrl_msg[7] = repeat_times[1];
-    ctrl_msg[8] = repeat_times[2];
-    ctrl_msg[9] = repeat_times[3];
-
-    // meta state
-    ctrl_msg[10] = 0;
-    ctrl_msg[11] = 0;
-    ctrl_msg[12] = 0;
-    ctrl_msg[13] = 0;
-   
+    unsigned char ctrl_msg[] = {
+        0x00, //key up
+        0x00, 0x00, 0x00, 0x03, //key home
+        0x00, 0x00, 0x00, 0x05, // repeat
+        0x00, 0x00, 0x00, 0x00, //no meta
+        0x00
+    };
     std::string msg_id = "msg001";
     scrcpy_device_send_ctrl_msg(listener, (char *)device_id, (char *)msg_id.c_str(), ctrl_msg, 14);
 }
