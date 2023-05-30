@@ -64,7 +64,7 @@ func configFromEnv() {
 func onDeviceDisconnected(token string, deviceId string, connectionType string) {
 	fmt.Printf("%s connection disconected for device %v, token=%v\n", connectionType, deviceId, token)
 }
-func main() {
+func run_server() {
 	deviceId := "session001"
 	receiver := scrcpy_recv.New(deviceId)
 	listener = receiver
@@ -75,4 +75,29 @@ func main() {
 	receiver.AddDeviceDisconnectedCallback(deviceId, onDeviceDisconnected)
 	receiver.Startup("27183", 2048, 4096)
 	scrcpy_recv.Release(receiver)
+}
+
+func main() {
+	go run_server()
+	time.Sleep(time.Second * 1)
+	for {
+		fmt.Println("What do you want?")
+		fmt.Println("0: shutdown scrcpy receiver socket")
+		fmt.Println("q: quit")
+		var choice string
+		n, err := fmt.Scanln(&choice)
+		if err != nil {
+			_ = fmt.Errorf("Could not get input: %v\n", err)
+			continue
+		}
+		if n == 0 && len(choice) == 0 {
+			_ = fmt.Errorf("Input needed\n")
+			continue
+		}
+		if choice == "0" {
+			listener.Shutdown()
+		} else if choice == "q" {
+			break
+		}
+	}
 }
