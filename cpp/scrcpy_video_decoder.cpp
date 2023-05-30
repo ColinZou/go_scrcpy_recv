@@ -325,7 +325,7 @@ image_size* VideoDecoder::get_image_size() {
 		debug_logf("no image size provider configured");
 		return NULL;
 	}
-	if (NULL == this->device_id) {
+	if (0 == strlen(this->device_id)) {
 		debug_logf("no device id provided");
 		return NULL;
 	}
