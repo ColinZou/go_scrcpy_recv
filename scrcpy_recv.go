@@ -231,13 +231,16 @@ func (r *receiver) AddFrameImageCallback(deviceId string, callbackMethod func(st
 }
 
 func (r *receiver) RemoveAllImageCallbacks(deviceId string) {
-	delete(r.frameImageCallbacks, deviceId)
-	r.removeFromGlobalMap()
-	cDeviceId := C.CString(deviceId)
-	defer func() {
-		C.free(unsafe.Pointer(cDeviceId))
-	}()
-	C.scrcpy_frame_unregister_all_callbacks(r.r, cDeviceId)
+	_, found := r.frameImageCallbacks[deviceId]
+	if found {
+		delete(r.frameImageCallbacks, deviceId)
+		r.removeFromGlobalMap()
+		cDeviceId := C.CString(deviceId)
+		defer func() {
+			C.free(unsafe.Pointer(cDeviceId))
+		}()
+		C.scrcpy_frame_unregister_all_callbacks(r.r, cDeviceId)
+	}
 }
 
 func (r *receiver) AddDeviceInfoCallback(deviceId string, callbackMethod func(string, int, int)) {
@@ -259,9 +262,9 @@ func (r *receiver) AddDeviceInfoCallback(deviceId string, callbackMethod func(st
 }
 
 func (r *receiver) RemoveAllDeviceInfoCallbacks(deviceId string) {
-	_, found := r.frameImageCallbacks[deviceId]
+	_, found := r.deviceInfoCallbacks[deviceId]
 	if found {
-		delete(r.frameImageCallbacks, deviceId)
+		delete(r.deviceInfoCallbacks, deviceId)
 		r.removeFromGlobalMap()
 
 		cDeviceId := C.CString(deviceId)

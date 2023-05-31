@@ -29,7 +29,7 @@ include_directories(${VCPKG_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR} ${GO_LIB_ROOT})
 
 link_directories(${VCPKG_LD_DIR})
 
-SET(OPENCV_LIB bcrypt lzma tiff libpng16 turbojpeg jpeg opencv_core4 opencv_imgcodecs4 opencv_imgproc4)
+SET(OPENCV_LIB bcrypt fmt spdlog lzma tiff libpng16 turbojpeg jpeg opencv_core4 opencv_imgcodecs4 opencv_imgproc4)
 SET(FFMPEG_LD_LIBS mfuuid strmbase zlib libwebp libsharpyuv avcodec avutil libx264 swscale swresample)
 
 # Enable Hot Reload for MSVC compilers if supported.

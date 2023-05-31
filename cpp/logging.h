@@ -3,6 +3,7 @@
 #ifdef __cplusplus
 #ifndef SCRCPY_LOGGING_METHOD
 #define SCRCPY_LOGGING_METHOD
+#include "spdlog/spdlog.h"
 void debug_logf_actual(int line, char *file, char *fmt, ...);
 void logging_cleanup();
 #define debug_logf(format, ...)                                                \

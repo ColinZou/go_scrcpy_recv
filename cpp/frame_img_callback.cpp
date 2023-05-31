@@ -6,7 +6,7 @@
 #define MAX_IMG_BUFFER_SIZE 1 * 1024 * 1024
 
 int frame_img_processor::callback_thread(device_frame_img_callback *callback_item) {
-	debug_logf(FIP_LOGGER "CB:: Running thread for frame callback of device %s \n", callback_item->device_id);
+	SPDLOG_DEBUG(FIP_LOGGER "CB:: Running thread for frame callback of device {}", callback_item->device_id);
 	BOOL wait_for_next = FALSE;
 	while (true) {
 		if (wait_for_next) {

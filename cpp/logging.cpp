@@ -3,15 +3,36 @@
 #include <stdlib.h>
 #include <cstring>
 #include "logging.h"
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
 #include <shared_mutex>
 
+#define LOG_LINE_MAX_WIDTH 2048
+
 class logger_config {
+    private:
+        bool m_enabled = false;
+        std::shared_ptr<spdlog::logger> logger = NULL;
     public:
         logger_config() {
             init_debug_status();
         }
         bool enabled() {
             return m_enabled;
+        }
+        void init_logger() {
+            spdlog::set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v");
+            if (m_enabled) {
+                spdlog::set_level(spdlog::level::debug);
+                try {
+                    this->logger = spdlog::basic_logger_mt("default", "scrcpy_debug.log");
+                    spdlog::set_default_logger(this->logger);
+                } catch(const spdlog::spdlog_ex &ex) {
+                    printf("Failed to create logger: %s\n", ex.what());
+                }
+            } else {
+                spdlog::set_level(spdlog::level::err);
+            }
         }
         void init_debug_status() {
             int env_value_len = 16;
@@ -26,21 +47,16 @@ class logger_config {
             }
             printf("SCRCPY_DEBUG=%s, debug output enabled? %s\n", env_value, m_enabled? "yes":"no");
             free(env_value);
+            init_logger();
         }
-    private:
-        bool m_enabled = false;
 };
 
 logger_config *cfg = new logger_config();
 
 void debug_logf_actual(int line, char *file, char *fmt, ...) {
-    if (!cfg->enabled()) {
+    if (!cfg || !cfg->enabled()) {
         return;
     }
-    va_list args;
-    va_start(args, fmt);
-    printf("%s#%d ", file, line);
-    vprintf(fmt, args);
 }
 
 void logging_cleanup() {
