@@ -279,6 +279,7 @@ void socket_lib::shutdown_svr() {
 }
 
 void socket_lib::remove_all_callbacks(char* device_id) {
+    debug_logf(CON_LOGGER "remove_all_callbacks for %s\n", device_id);
 	callback_handler->del_all(device_id);
 }
 socket_lib::~socket_lib() {
@@ -354,7 +355,7 @@ void socket_lib::register_device_info_callback(char* device_id, scrcpy_device_in
 
 void socket_lib::unregister_all_device_info_callbacks(char* device_id) {
 	std::lock_guard<std::mutex> guard(this->device_info_callback_dict_lock);
-	debug_logf(CON_LOGGER "unregistering all callbacks for device %s\n", device_id);
+	debug_logf(CON_LOGGER "unregistering all device info callbacks for device %s\n", device_id);
 	auto dict = this->device_info_callback_dict;
 	auto find = this->device_info_callback_dict->find(std::string(device_id));
 	if (find == dict->end()) {

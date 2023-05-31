@@ -45,14 +45,14 @@ void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_i
 		dest[dest_start_index + i] = src[src_start_index + i];
 	}
 }
-void print_bytes(char *data, int length) {
+void print_bytes(char *header, char *data, int length) {
     char *buffer = (char*)malloc(sizeof(char) * 128);
     bool has_data = false;
     for(int i = 0; i < length; i++) {
         int index = i%8;
         if (index == 0) {
             if (has_data) {
-                debug_logf("%s\n", buffer);
+                debug_logf("%s %s\n", header, buffer);
             }
             memset(buffer, 0, 128);
             has_data = false;
@@ -61,7 +61,7 @@ void print_bytes(char *data, int length) {
         has_data = true;
     }
     if (has_data) {
-        debug_logf("%s\n", buffer);
+        debug_logf("%s %s\n", header, buffer);
     }
     free(buffer);
 }

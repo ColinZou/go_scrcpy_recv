@@ -41,5 +41,5 @@ void array_copy_to(char* src, char* dest, const int dest_start_index, const int 
 * @param	copy_length			data length for copying from src into dest
 */
 void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_index, int copy_length);
-void print_bytes(char *data, int length);
+void print_bytes(char *header, char *data, int length);
 #endif // !SCRCPY_UTILS

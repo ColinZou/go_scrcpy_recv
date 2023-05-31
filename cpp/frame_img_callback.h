@@ -87,6 +87,9 @@ private:
     int calc_buffer_size(int frame_data_size, int current_buffer_size);
 
     void release_device_img_callback(device_frame_img_callback* callback_item);
+
+    void clean_device_img_callback_state(std::string device_id, bool remove_from_registry);
+
 public:
 	frame_img_processor();
 	~frame_img_processor();

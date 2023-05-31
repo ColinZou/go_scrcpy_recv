@@ -36,3 +36,5 @@ lib/scrcpy_recv/
 cpp/release/
 cpp/debug/
 **/.clangd
+*.log
+*.copy

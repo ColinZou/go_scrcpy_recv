@@ -231,16 +231,13 @@ func (r *receiver) AddFrameImageCallback(deviceId string, callbackMethod func(st
 }
 
 func (r *receiver) RemoveAllImageCallbacks(deviceId string) {
-	_, found := r.frameImageCallbacks[deviceId]
-	if found {
-		delete(r.frameImageCallbacks, deviceId)
-		r.removeFromGlobalMap()
-		cDeviceId := C.CString(deviceId)
-		defer func() {
-			C.free(unsafe.Pointer(cDeviceId))
-		}()
-		C.scrcpy_frame_unregister_all_callbacks(r.r, cDeviceId)
-	}
+	delete(r.frameImageCallbacks, deviceId)
+	r.removeFromGlobalMap()
+	cDeviceId := C.CString(deviceId)
+	defer func() {
+		C.free(unsafe.Pointer(cDeviceId))
+	}()
+	C.scrcpy_frame_unregister_all_callbacks(r.r, cDeviceId)
 }
 
 func (r *receiver) AddDeviceInfoCallback(deviceId string, callbackMethod func(string, int, int)) {
@@ -431,7 +428,6 @@ func goScrcpyFrameImageCallback(cToken *C.char, cDeviceId *C.char, cImgData *C.u
 	imgDataLen := int(cImgDataLen)
 	receiverList, found := globalTokenAndReceiverMap[token]
 	if !found {
-		fmt.Printf("No receiver registered callback for frame image, token=%v, device=%v, data_len=%v\n", token, deviceId, imgDataLen)
 		return
 	}
 	// using WaitGroup to making sure the bytes won't be released before callbacks invoked
@@ -457,7 +453,6 @@ func goScrcpyDeviceInfoCallback(cToken *C.char, cDeviceId *C.char, cWidth C.int,
 	token := C.GoString(cToken)
 	receiverList, found := globalTokenAndReceiverMap[token]
 	if !found {
-		fmt.Printf("No receiver registered callback for device info, token=%v, device=%v, screen size = %v x %v \n", cToken, cDeviceId, cWidth, cHeight)
 		return
 	}
 	deviceId := C.GoString(cDeviceId)
@@ -473,7 +468,6 @@ func goScrcpyCtrlSendCallback(cToken *C.char, cDeviceId *C.char, cMsgId *C.char,
 	token := C.GoString(cToken)
 	receiverList, found := globalTokenAndReceiverMap[token]
 	if !found {
-		fmt.Printf("No receiver registered callback for controll envent sending, token=%v, device=%v, status=%v, data_len=%v \n", cToken, cDeviceId, cStatus, cDataLen)
 		return
 	}
 	deviceId := C.GoString(cDeviceId)
@@ -488,7 +482,6 @@ func goScrcpyDeviceDisconnectedCallback(cToken *C.char, cDeviceId *C.char, cConn
 	token := strings.Clone(C.GoString(cToken))
 	receiverList, found := globalTokenAndReceiverMap[token]
 	if !found {
-		fmt.Printf("No receiver registered callback for device disconnected token=%v device=%v connectionType=%v\n", cToken, cDeviceId, cConnectionType)
 		return
 	}
 	deviceId := strings.Clone(C.GoString(cDeviceId))

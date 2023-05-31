@@ -114,6 +114,7 @@ func main() {
 		case "1":
 			registerEvents(deviceId, listener)
 		case "2":
+			fmt.Println("GOLANG:: unregisterAllEvents")
 			unregisterAllEvents(deviceId, listener)
 		case "q":
 			break_out = true
