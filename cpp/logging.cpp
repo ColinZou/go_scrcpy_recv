@@ -27,6 +27,7 @@ class logger_config {
                 try {
                     this->logger = spdlog::basic_logger_mt("default", "scrcpy_debug.log");
                     spdlog::set_default_logger(this->logger);
+                    printf("Will logging into scrcpy_debug.log\n");
                 } catch(const spdlog::spdlog_ex &ex) {
                     printf("Failed to create logger: %s\n", ex.what());
                 }
@@ -40,7 +41,7 @@ class logger_config {
             char *env_value = (char*) malloc(env_value_len * sizeof(char));
             _dupenv_s(&env_value, &read_len, "SCRCPY_DEBUG");
             printf("SCRCPY_DEBUG=%s\n", env_value);
-            if (strlen(env_value) <= 0) {
+            if (env_value && strlen(env_value) <= 0) {
                 m_enabled = false;
             } else {
                 m_enabled = true;

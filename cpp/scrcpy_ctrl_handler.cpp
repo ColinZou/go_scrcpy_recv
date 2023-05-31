@@ -5,7 +5,7 @@
 #include <functional>
 #include <winbase.h>
 #include "utils.h"
-#include "logging.h"
+#include "spdlog/spdlog.h"
 
 #define CTRL_LOGGER "CTRL:: "
 
@@ -54,10 +54,10 @@ void scrcpy_ctrl_socket_handler::stop() {
     this->keep_running = false;
 }
 void scrcpy_ctrl_socket_handler::send_msg(char *msg_id, uint8_t *data, int data_len) {
-    debug_logf(CTRL_LOGGER "Acquiring a lock for sending message msg_id=%s for device %s\n", msg_id, this->device_id->c_str());
+    spdlog::debug(CTRL_LOGGER "Acquiring a lock for sending message msg_id={} for device {}", msg_id, this->device_id->c_str());
     print_bytes((char *)CTRL_LOGGER, (char *)data, data_len);
     std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
-    debug_logf(CTRL_LOGGER "Lock granted for sending message msg_id=%s for device %s\n", msg_id, this->device_id->c_str());
+    spdlog::debug(CTRL_LOGGER "Lock granted for sending message msg_id={} for device {}", msg_id, this->device_id->c_str());
     auto msg = new scrcpy_ctrl_msg();
     char* msg_id_copy = (char*)malloc(sizeof(char) * strlen(msg_id) + 1);
     char* data_copy = (char*)malloc(sizeof(char) * data_len);
@@ -88,7 +88,7 @@ void scrcpy_ctrl_socket_handler::cleanup_trash() {
         cleaned_size ++;
     }
     if (cleaned_size > 0) {
-        debug_logf(CTRL_LOGGER "Released %d trashed ctrl msg\n", cleaned_size);
+        spdlog::debug(CTRL_LOGGER "Released {} trashed ctrl msg", cleaned_size);
     }
 }
 int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string, int, int)> callback) {
@@ -112,7 +112,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
         }
         {
             std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
-            debug_logf(CTRL_LOGGER "%d messages pending for device %s \n", queue_size, this->device_id->c_str());
+            spdlog::debug(CTRL_LOGGER "{} messages pending for device {} ", queue_size, this->device_id->c_str());
             for (auto item = this->outgoing_queue->rbegin(); item != this->outgoing_queue->rend(); ++item) {
                 auto msg = *item;
                 // remove it
@@ -120,12 +120,12 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
                 //send it
                 int status = send(this->client_socket, msg->data, msg->length, 0);
                 if (status == SOCKET_ERROR) {
-                    debug_logf(CTRL_LOGGER "Failed to send msg_id=%s %d bytes of ctrl msg to device %s\n", msg->msg_id, msg->length, this->device_id->c_str());
+                    spdlog::debug(CTRL_LOGGER "Failed to send msg_id={} {} bytes of ctrl msg to device {}", msg->msg_id, msg->length, this->device_id->c_str());
                 } else if(status == msg->length) {
-                    debug_logf(CTRL_LOGGER "Sent msg_id=%s to device %s with %d bytes\n", msg->msg_id, this->device_id->c_str(), msg->length);
+                    spdlog::debug(CTRL_LOGGER "Sent msg_id={} to device {} with {} bytes", msg->msg_id, this->device_id->c_str(), msg->length);
                     print_bytes((char *)CTRL_LOGGER, (char *)msg->data, msg->length);
                 } else {
-                    debug_logf(CTRL_LOGGER "Unexpected status %d when trying to send msg_id=%s with %s bytes data to device %s\n", status, msg->msg_id, msg->length, this->device_id->c_str());
+                    spdlog::debug(CTRL_LOGGER "Unexpected status {} when trying to send msg_id={} with {} bytes data to device {}", status, msg->msg_id, msg->length, this->device_id->c_str());
                 }
                 if(NULL != callback) {
                     callback(std::string(this->device_id->c_str()), std::string(msg->msg_id), status, msg->length);
