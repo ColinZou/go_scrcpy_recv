@@ -18,31 +18,31 @@ var deviceId string
 const imageFolder string = "images"
 
 func onDeviceInfoCallback(deviceId string, screenWidth int, screenHeight int) {
-	fmt.Printf("Got device info: id=%v width=%v height=%v,  will scale it\n", deviceId, screenWidth, screenHeight)
+	fmt.Printf("GOLANG:: Got device info: id=%v width=%v height=%v,  will scale it\n", deviceId, screenWidth, screenHeight)
 	listener.SetFrameImageSize(deviceId, screenWidth/3, screenHeight/3)
 	time.Sleep(1 * time.Second)
-	fmt.Println("About to send a ctrl event")
+	fmt.Println("GOLANG:: About to send a ctrl event")
 	data := make([]byte, 14)
 	listener.SendCtrlEvent(deviceId, "test001", &data)
 }
 func onFrameImageCallback(deviceId string, imgData *[]byte, imgSize *scrcpy_recv.ImageSize, screenSize *scrcpy_recv.ImageSize) {
-	fmt.Printf("Got frame %v from %s, screen is %v, img bytes is %d\n", imgSize, deviceId, screenSize, len(*imgData))
+	frameNo += 1
+	fmt.Printf("GOLANG:: Got frame[%d] %v from %s, screen is %v, img bytes is %d\n", frameNo, imgSize, deviceId, screenSize, len(*imgData))
+	if !saveFramesToFiles {
+		return
+	}
 	if _, err := os.Stat(imageFolder); errors.Is(err, os.ErrNotExist) {
 		if err = os.MkdirAll(imageFolder, os.ModePerm); err != nil {
 			fmt.Printf("Failed to create folder %s\n", imageFolder)
 			return
 		}
 	}
-	if !saveFramesToFiles {
-		return
-	}
 	imgPath := fmt.Sprintf("%s/%03d.png", imageFolder, frameNo)
 	if err := os.WriteFile(imgPath, *imgData, os.ModePerm); err != nil {
-		fmt.Printf("Failed to write image %v: %v\n", imgPath, err)
+		fmt.Printf("GOLANG:: Failed to write image %v: %v\n", imgPath, err)
 	} else {
-		fmt.Printf("Wrote frame image %s\n", imgPath)
+		fmt.Printf("GOLAGN:: Wrote frame image %s\n", imgPath)
 	}
-	frameNo += 1
 }
 func onCtrlEventSent(deviceId string, msgId string, sendStatus int, dataLen int) {
 	fmt.Printf("GOLANG::Invoking ctrl event sent callback, deviceId=%s msgId=%s, sendStatus=%d, dataLen=%d\n", deviceId, msgId, sendStatus, dataLen)
@@ -60,10 +60,10 @@ func configFromEnv() {
 	} else {
 		msgPrefix = "Will NOT "
 	}
-	fmt.Printf("%s save frame images into images/ folder.\n", msgPrefix)
+	fmt.Printf("GOLANG:: %s save frame images into images/ folder.\n", msgPrefix)
 }
 func onDeviceDisconnected(token string, deviceId string, connectionType string) {
-	fmt.Printf("%s connection disconected for device %v, token=%v\n", connectionType, deviceId, token)
+	fmt.Printf("GOLANG:: %s connection disconected for device %v, token=%v\n", connectionType, deviceId, token)
 }
 
 func registerEvents(deviceId string, receiver scrcpy_recv.Receiver) {
@@ -100,11 +100,11 @@ func main() {
 		var choice string
 		n, err := fmt.Scanln(&choice)
 		if err != nil {
-			_ = fmt.Errorf("Could not get input: %v\n", err)
+			_ = fmt.Errorf("GOLANG:: Could not get input: %v\n", err)
 			continue
 		}
 		if n == 0 && len(choice) == 0 {
-			_ = fmt.Errorf("Input needed\n")
+			_ = fmt.Errorf("GOLANG:: Input needed\n")
 			continue
 		}
 		break_out := false

@@ -427,15 +427,15 @@ func Release(handle Receiver) {
 //export goScrcpyFrameImageCallback
 func goScrcpyFrameImageCallback(cToken *C.char, cDeviceId *C.char, cImgData *C.uint8_t, cImgDataLen C.uint32_t, cImgSize C.struct_scrcpy_rect, cScreenSize C.struct_scrcpy_rect) {
 	token := C.GoString(cToken)
+	deviceId := C.GoString(cDeviceId)
 	imgDataLen := int(cImgDataLen)
 	receiverList, found := globalTokenAndReceiverMap[token]
 	if !found {
-		fmt.Printf("No receiver registered callback for frame image, token=%v, device=%v, data_len=%v\n", cToken, cDeviceId, imgDataLen)
+		fmt.Printf("No receiver registered callback for frame image, token=%v, device=%v, data_len=%v\n", token, deviceId, imgDataLen)
 		return
 	}
 	// using WaitGroup to making sure the bytes won't be released before callbacks invoked
 	var wg sync.WaitGroup
-	deviceId := C.GoString(cDeviceId)
 	imgSize := scrcpyRectToImageSize(cImgSize)
 	screenSize := scrcpyRectToImageSize(cScreenSize)
 	// copy the bytes into go's ram

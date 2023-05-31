@@ -9,10 +9,10 @@
 
 #define PRE_ALLOC_CALLBASCK_SIZE 4
 #define MAX_PENDING_FRAMES 4
-#define CALLBACK_PARAM_EMPTY 0
-#define CALLBACK_PARAM_PENDING 1
+#define CALLBACK_PARAM_SENT 0
+#define CALLBACK_PARAM_EMPTY 1
+#define CALLBACK_PARAM_PENDING 2
 #define CALLBACK_PARAM_SENDING 2
-#define CALLBACK_PARAM_SENT 3
 // callback params for a single frame image
 typedef struct frame_img_callback_params {
 	// lock
@@ -56,7 +56,7 @@ typedef struct device_frame_img_callback {
 	// lock object
 	std::mutex lock;
 	// buffered frames
-	std::deque<frame_img_callback_params*> frames;
+	std::deque<frame_img_callback_params*> *frames = nullptr;
 	// allocated frames for buffering
 	int allocated_frames = 0;
 	// stopping flag for this device
@@ -83,8 +83,10 @@ private:
 	* the thread body
 	*/
 	int callback_thread(device_frame_img_callback* callback_item);
+
     int calc_buffer_size(int frame_data_size, int current_buffer_size);
 
+    void release_device_img_callback(device_frame_img_callback* callback_item);
 public:
 	frame_img_processor();
 	~frame_img_processor();
