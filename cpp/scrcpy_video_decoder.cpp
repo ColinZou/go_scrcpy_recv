@@ -151,26 +151,39 @@ int VideoDecoder::read_device_info() {
 	return 0;
 }
 VideoDecoder::~VideoDecoder() {
-	SPDLOG_INFO(DECODER_LOGGER "Cleaning video decoder for {}", this->socket);
-	if (NULL != this->frame) {
-		av_frame_free(&this->frame);
-	}
-	if (NULL != this->codec_ctx) {
-		avcodec_free_context(&this->codec_ctx);
-	}
-	if (NULL != this->codec_parser_context) {
-		av_parser_close(this->codec_parser_context);
-	}
-	if (NULL != this->active_packet) {
-		av_packet_free(&this->active_packet);
-	}
-	if (NULL != this->packet_buffer) {
-		free(this->packet_buffer);
-	}
-	if (NULL != this->active_data) {
-		free(this->active_data);
-	}
+	SPDLOG_INFO(DECODER_LOGGER "Cleaning video decoder");
 	std::lock_guard<std::mutex> lock_guard{ this->img_buffer_lock };
+	if (this->frame) {
+        SPDLOG_DEBUG(DECODER_LOGGER "Removing frame");
+		av_frame_free(&this->frame);
+        this->frame = nullptr;
+	}
+	if (this->codec_ctx) {
+        SPDLOG_DEBUG(DECODER_LOGGER "Removing codec_ctx");
+		avcodec_free_context(&this->codec_ctx);
+        this->codec_ctx = nullptr;
+	}
+	if (this->codec_parser_context) {
+        SPDLOG_DEBUG(DECODER_LOGGER "Removing codec_parser_context");
+		av_parser_close(this->codec_parser_context);
+        this->codec_parser_context = nullptr;
+	}
+	if (this->active_packet) {
+        SPDLOG_DEBUG(DECODER_LOGGER "Removing active_packet");
+		av_packet_free(&this->active_packet);
+        this->active_packet = nullptr;
+	}
+	if (this->packet_buffer) {
+        SPDLOG_DEBUG(DECODER_LOGGER "Removing packet_buffer");
+		free(this->packet_buffer);
+        this->packet_buffer = nullptr;
+	}
+	if (this->active_data) {
+        SPDLOG_DEBUG(DECODER_LOGGER "Removing active_data");
+		free(this->active_data);
+        this->active_data = nullptr;
+	}
+    log_flush();
 }
 int VideoDecoder::init_decoder() {
 	int result = 0;
@@ -487,8 +500,13 @@ int socket_decode(SOCKET socket, video_decode_callback *callback, connection_buf
 		buffer_cfg, keep_running, 
 		image_buffer);
 	int result = decoder->decode();
-
+    SPDLOG_INFO("Video decoder is shutting down");
+    log_flush();
 	delete image_buffer;
+    SPDLOG_INFO("Video decoder img_buffer cleared");
+    log_flush();
 	delete decoder;
+    SPDLOG_INFO("Video decoder deleted");
+    log_flush();
 	return result;
 }

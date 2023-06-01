@@ -112,6 +112,7 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
     if (!is_ctrl_socket) {
         SPDLOG_DEBUG(CON_LOGGER "{} is a video socket for device {} ", connection->client_socket, connection->device_id->c_str());
         result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
+        SPDLOG_DEBUG("Decoder just ended for device {}", connection->device_id->c_str());
     } else {
         SPDLOG_DEBUG(CON_LOGGER "{} is a ctrl socket for device {} ", connection->client_socket, connection->device_id->c_str());
         auto handler = new scrcpy_ctrl_socket_handler(connection->device_id, connection->client_socket);
@@ -125,54 +126,63 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
             this->internal_on_ctrl_msg_sent_callback(device_id, msg_id, status, data_len);
         };
         result = handler->run(callback);
-        delete handler;
+        SPDLOG_INFO("Deleting handler  of device {}'s ctrl socket", connection->device_id->c_str());
     }
     goto end;
 end:
+    auto connection_type = is_ctrl_socket ? "ctrl" : "video";
+    SPDLOG_DEBUG("Doing connection cleanup for device {} connection type {}", connection->device_id->c_str(), connection_type);
     if (client_socket != INVALID_SOCKET) {
         SPDLOG_DEBUG(CON_LOGGER "Shutdown {}", client_socket);
         result = shutdown(client_socket, SD_SEND);
         if (result == SOCKET_ERROR) {
             SPDLOG_DEBUG(CON_LOGGER "Failed to close client connection: {}", WSAGetLastError());
         }
+        client_socket = INVALID_SOCKET;
     }
+    log_flush();
     // invoke shutdown callback
-    if(this->disconnected_callback) {
-        SPDLOG_DEBUG(CON_LOGGER "Invoking disconnected_callback for device {} connection_type {}", connection->device_id->c_str(), connection->connection_type->c_str());
+    if(this->disconnected_callback && !is_ctrl_socket) {
+        SPDLOG_DEBUG(CON_LOGGER "Invoking disconnected_callback for device {} connection_type {}", connection->device_id->c_str(), connection_type);
         this->disconnected_callback((char *) this->m_token.c_str(), 
                 (char *)connection->device_id->c_str(), 
                 (char *)connection->connection_type->c_str());
     }
-    if (connection->connection_type) {
-        SPDLOG_DEBUG(CON_LOGGER "Cleaning connection type data of connection_type={}", connection->connection_type->c_str());
-        delete connection->connection_type;
-        connection->connection_type = nullptr;
-    }
     if(connection->device_id) {
         std::string device_id_str = *connection->device_id;
+        auto item = this->ctrl_socket_handler_map->find(device_id_str);
+        auto item_found = item != this->ctrl_socket_handler_map->end();
+        SPDLOG_DEBUG("Found ctrl channel for {}, found ? {}", device_id_str.c_str(), item_found ? "yes":"no");
+        log_flush();
         if (is_ctrl_socket) {
             SPDLOG_INFO("Trying to cleaning ctrl socket for device {}", device_id_str);
             std::unique_lock lock(this->ctrl_socket_handler_map_lock);
-            auto item = this->ctrl_socket_handler_map->find(device_id_str);
-            if (item != this->ctrl_socket_handler_map->end()) {
+            if (item_found) {
                 SPDLOG_INFO(CON_LOGGER "Removing ctrl socket of {}  from map", connection->device_id->c_str());
                 this->ctrl_socket_handler_map->erase(item);
             }
         } else {
             // tell ctrl socket to stop
-            auto item = this->ctrl_socket_handler_map->find(device_id_str);
-            if (item != this->ctrl_socket_handler_map->end()) {
+            SPDLOG_DEBUG("device {} video socket is ending, trying to stop ctrl socket", connection->device_id->c_str());
+            if (item_found) {
                 SPDLOG_INFO(CON_LOGGER "Telling ctrl socket of {}  to stop ", connection->device_id->c_str());
                 item->second->stop();
             }
         }
         SPDLOG_INFO(CON_LOGGER "Cleaning device id data of device_id={}", connection->device_id->c_str());
+        log_flush();
         delete connection->device_id;
         connection->device_id = nullptr;
     }
-    SPDLOG_INFO(CON_LOGGER "Deleting connection");
+    if (connection->connection_type) {
+        delete connection->connection_type;
+        connection->connection_type = nullptr;
+    }
+    SPDLOG_INFO(CON_LOGGER "Deleting {} connection", connection_type);
+    log_flush();
     delete connection;
-    SPDLOG_INFO(CON_LOGGER "Cleaned up connection");
+    SPDLOG_INFO(CON_LOGGER "Connection removed");
+    log_flush();
     return result;
 }
 
@@ -201,6 +211,8 @@ int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
         std::thread connection_thread(&socket_lib::handle_connetion, this, connection);
         connection_thread.detach();
     } while (keep_accept_connection > 0);
+    SPDLOG_WARN("Server listener is shutting down");
+    log_flush();
     // free this listener
     delete this;
     return result;
@@ -275,6 +287,8 @@ image_size* socket_lib::get_original_screen_size(char* device_id) {
 }
 void socket_lib::shutdown_svr() {
     std::lock_guard<std::mutex> guard{ keep_accept_connection_lock };
+    SPDLOG_INFO("Shutting down server");
+    log_flush();
     if (keep_accept_connection == 0) {
         return;
     }

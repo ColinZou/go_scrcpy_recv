@@ -17,10 +17,6 @@ scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, SOCK
         this->device_id = dev_id_cloned;
 }
 scrcpy_ctrl_socket_handler::~scrcpy_ctrl_socket_handler() {
-    if(this->device_id) {
-        delete this->device_id;
-        this->device_id = nullptr;
-    }
     if(this->outgoing_queue) {
         std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
         SPDLOG_INFO("Cleaning outgoing ctrl msg queue for {}", this->device_id->c_str());
@@ -47,6 +43,10 @@ scrcpy_ctrl_socket_handler::~scrcpy_ctrl_socket_handler() {
         }
         delete this->outgoing_trash;
         this->outgoing_trash = nullptr;
+    }
+    if(this->device_id) {
+        delete this->device_id;
+        this->device_id = nullptr;
     }
 }
 void scrcpy_ctrl_socket_handler::stop() {
@@ -104,6 +104,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
         {
             std::lock_guard<std::mutex> lock(this->stat_lock);
             if (!this->keep_running) {
+                SPDLOG_WARN("Will stop running loop for {}'s ctrl socket", this->device_id->c_str());
                 break;
             }
         }
@@ -145,5 +146,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
             }
         }
     }
+    SPDLOG_INFO("Loop end for {}", this->device_id->c_str());
+    delete this;
     return result;
 }
