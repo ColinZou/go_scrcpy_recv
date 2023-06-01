@@ -45,8 +45,11 @@ class logger_config {
             size_t read_len;
             char *env_value = (char*) malloc(env_value_len * sizeof(char));
             _dupenv_s(&env_value, &read_len, "SCRCPY_DEBUG");
+            if (!env_value) {
+                return;
+            }
             printf("SCRCPY_DEBUG=%s\n", env_value);
-            if (env_value && strlen(env_value) <= 0) {
+            if (strlen(env_value) <= 0) {
                 m_enabled = false;
             } else {
                 if  (strcmp(env_value, "2") == 0) {

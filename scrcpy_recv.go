@@ -347,7 +347,8 @@ func (r *receiver) RemoveAllCtrlEventSendCallback(deviceId string) {
 func (r *receiver) SendCtrlEvent(deviceId string, msgId string, data *[]byte) {
 	cDeviceId := C.CString(deviceId)
 	cMsgId := C.CString(msgId)
-	cData := unsafe.Pointer(data)
+	rawData := *data
+	cData := unsafe.Pointer(&rawData[0])
 	defer func() {
 		C.free(unsafe.Pointer(cDeviceId))
 		C.free(unsafe.Pointer(cMsgId))
