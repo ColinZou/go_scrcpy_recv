@@ -19,7 +19,7 @@
 #define SCRCPY_SOCKET_HEADER_SIZE 80 // 64 bytes name, 16 bytes type
 #define SCRCPY_HEADER_DEVICE_ID_LEN 64                                
 #define SCRCPY_HEADER_TYPE_LEN 16
-#define CON_LOGGER  "CONN::"
+#define CON_LOGGER  ""
 #endif //!SCRCPY_CTRL_SOCKET_NAME
 
 socket_lib::socket_lib(std::string token) : 
@@ -50,7 +50,7 @@ void socket_lib::on_device_info(char* device_id, int screen_width, int screen_he
 }
 
 int socket_lib::register_callback(char* device_id, frame_callback_handler callback) {
-    SPDLOG_DEBUG(CON_LOGGER "Trying to register frame image callback for device {} ", device_id);
+    SPDLOG_INFO(CON_LOGGER "Trying to register frame image callback for device {} ", device_id);
     this->callback_handler->add(device_id, callback, (char *)this->m_token.c_str());
     return 0;
 }
@@ -140,7 +140,6 @@ end:
         }
         client_socket = INVALID_SOCKET;
     }
-    log_flush();
     // invoke shutdown callback
     if(this->disconnected_callback && !is_ctrl_socket) {
         SPDLOG_DEBUG(CON_LOGGER "Invoking disconnected_callback for device {} connection_type {}", connection->device_id->c_str(), connection_type);
@@ -153,7 +152,6 @@ end:
         auto item = this->ctrl_socket_handler_map->find(device_id_str);
         auto item_found = item != this->ctrl_socket_handler_map->end();
         SPDLOG_DEBUG("Found ctrl channel for {}, found ? {}", device_id_str.c_str(), item_found ? "yes":"no");
-        log_flush();
         if (is_ctrl_socket) {
             SPDLOG_INFO("Trying to cleaning ctrl socket for device {}", device_id_str);
             std::unique_lock lock(this->ctrl_socket_handler_map_lock);
@@ -170,7 +168,6 @@ end:
             }
         }
         SPDLOG_INFO(CON_LOGGER "Cleaning device id data of device_id={}", connection->device_id->c_str());
-        log_flush();
         delete connection->device_id;
         connection->device_id = nullptr;
     }
@@ -179,7 +176,6 @@ end:
         connection->connection_type = nullptr;
     }
     SPDLOG_INFO(CON_LOGGER "Deleting {} connection", connection_type);
-    log_flush();
     delete connection;
     SPDLOG_INFO(CON_LOGGER "Connection removed");
     log_flush();
@@ -229,7 +225,7 @@ int socket_lib::startup(char* address, int network_buffer_size_kb, int video_pac
     SPDLOG_DEBUG(CON_LOGGER "WSAStartup");
     result = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (result != 0) {
-        SPDLOG_DEBUG(CON_LOGGER "Failed to init winsock: {}", result);
+        SPDLOG_ERROR(CON_LOGGER "Failed to init winsock: {}", result);
         return 1;
     }
     ZeroMemory(&addr_hints, sizeof(addr_hints));
@@ -240,21 +236,21 @@ int socket_lib::startup(char* address, int network_buffer_size_kb, int video_pac
     SPDLOG_DEBUG(CON_LOGGER "getaddrinfo");
     result = getaddrinfo(NULL, address, &addr_hints, &addr_result);
     if (result != 0) {
-        SPDLOG_DEBUG(CON_LOGGER "Failed to call getaddrinfo for address: {} err_no={}", address, result);
+        SPDLOG_ERROR(CON_LOGGER "Failed to call getaddrinfo for address: {} err_no={}", address, result);
         WSACleanup();
         return 1;
     }
     SPDLOG_DEBUG(CON_LOGGER "socket");
     listen_socket = socket(addr_result->ai_family, addr_result->ai_socktype, addr_result->ai_protocol);
     if (listen_socket == INVALID_SOCKET) {
-        SPDLOG_DEBUG(CON_LOGGER "Failed to create socket with error: {}", WSAGetLastError());
+        SPDLOG_ERROR(CON_LOGGER "Failed to create socket with error: {}", WSAGetLastError());
         freeaddrinfo(addr_result);
         WSACleanup();
         return 1;
     }
     result = bind(listen_socket, addr_result->ai_addr, (int)addr_result->ai_addrlen);
     if (result == SOCKET_ERROR) {
-        SPDLOG_DEBUG(CON_LOGGER "Failed to bind with error: {}", WSAGetLastError());
+        SPDLOG_ERROR(CON_LOGGER "Failed to bind with error: {}", WSAGetLastError());
         freeaddrinfo(addr_result);
         closesocket(listen_socket);
         WSACleanup();
@@ -263,7 +259,7 @@ int socket_lib::startup(char* address, int network_buffer_size_kb, int video_pac
     freeaddrinfo(addr_result);
     result = listen(listen_socket, SOMAXCONN);
     if (result == SOCKET_ERROR) {
-        SPDLOG_DEBUG(CON_LOGGER "Failed to start listening: {}", WSAGetLastError());
+        SPDLOG_ERROR(CON_LOGGER "Failed to start listening: {}", WSAGetLastError());
         if (listen_socket != INVALID_SOCKET) {
             closesocket(listen_socket);
         }
@@ -271,7 +267,7 @@ int socket_lib::startup(char* address, int network_buffer_size_kb, int video_pac
         return result;
     }
     std::thread server_thread(&socket_lib::accept_new_connection, this, &cfg);
-    SPDLOG_DEBUG(CON_LOGGER "Started new thread accepting new connection for listener {}", (uintptr_t)listen_socket);
+    SPDLOG_INFO(CON_LOGGER "Started new thread accepting new connection for listener {}", (uintptr_t)listen_socket);
     server_thread.join();
     // close the listen socket
     closesocket(listen_socket);

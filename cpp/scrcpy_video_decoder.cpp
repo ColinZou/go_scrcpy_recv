@@ -25,7 +25,7 @@ using namespace cv;
 #define H264_HEAD_BUFFER_SIZE 12
 #define PACKET_CHUNK_BUFFER_SIZE 32*1024
 #define PNG_IMG_BUFFER 1024 * 1024 * 4
-#define DECODER_LOGGER "DECODER::"
+#define DECODER_LOGGER ""
 #endif
 typedef struct VideoHeader {
 	uint64_t pts;
@@ -108,15 +108,6 @@ public:
 	int decode();
 	void free_resources();
 };
-void show_data(char* data, int length) {
-	for (int i = 0; i < length; i++) {
-		if (i % 32 == 0 && i > 0) {
-			SPDLOG_TRACE(DECODER_LOGGER "");
-		}
-		SPDLOG_TRACE(DECODER_LOGGER "{0:#x} ", (uint8_t)data[i]);
-	}
-	SPDLOG_TRACE(DECODER_LOGGER "");
-}
 VideoDecoder::VideoDecoder(SOCKET socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
 	int* keep_running, std::vector<uchar>* img_buffer) {
 	this->socket = socket;
@@ -143,7 +134,7 @@ int VideoDecoder::read_device_info() {
 	array_copy_to(device_info_data, this->device_id, 0, SCRCPY_DEIVCE_ID_LENGTH);
 	this->width = to_int(device_info_data, SCRCPY_DEVICE_INFO_SIZE, SCRCPY_DEIVCE_ID_LENGTH, device_size_bytes);
 	this->height = to_int(device_info_data, SCRCPY_DEVICE_INFO_SIZE, SCRCPY_DEIVCE_ID_LENGTH + device_size_bytes, device_size_bytes);
-	SPDLOG_TRACE(DECODER_LOGGER "Device {} connected, width: {}, height: {}, socket: {}", this->device_id, this->width, this->height, this->socket);
+	SPDLOG_INFO(DECODER_LOGGER "Device {} connected, width: {}, height: {}, socket: {}", this->device_id, this->width, this->height, this->socket);
 	// callback for device info
 	if (this->callback) {
 		this->callback->on_device_info(device_id, this->width, this->height);
@@ -257,9 +248,10 @@ int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
 		int chunk_read_plan = min(max_chunk, length - read_total);
 		int read_length = recv(this->socket, chunk, chunk_read_plan, 0);
 		if (read_length != chunk_read_plan) {
-			SPDLOG_TRACE(DECODER_LOGGER "Planned to read {} bytes, got {} bytes instead socket={}", chunk_read_plan, read_length, this->socket);
+			SPDLOG_ERROR(DECODER_LOGGER "Planned to read {} bytes, got {} bytes instead socket={}", chunk_read_plan, read_length, this->socket);
 		}
 		else if (read_length <= 0) {
+			SPDLOG_ERROR("Connection may be closed for device {}", this->device_id);
 			result = -1;
 			break;
 		}
@@ -320,8 +312,7 @@ int VideoDecoder::prepare_packet(uint64_t pts, int length) {
 			active_packet->pts = this->packet_stat.pts;
 			active_packet->size = old_size;
 		}
-	}
-	else {
+	} else {
 		this->pending_data_length = 0;
 		active_packet->data = (uint8_t*)this->packet_buffer;
 	}
@@ -388,7 +379,7 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
 		uint8_t* img_data = (uint8_t*)this->img_buffer->data();
 		this->callback->on_video_callback(device_id, img_data, this->img_buffer->size(), target_width, target_height, width, height);
 	} else {
-		SPDLOG_WARN(DECODER_LOGGER "Failed to encode a png file");
+		SPDLOG_ERROR(DECODER_LOGGER "Failed to encode a png file");
 	}
 	return 0;
 }
@@ -501,12 +492,9 @@ int socket_decode(SOCKET socket, video_decode_callback *callback, connection_buf
 		image_buffer);
 	int result = decoder->decode();
     SPDLOG_INFO("Video decoder is shutting down");
-    log_flush();
 	delete image_buffer;
     SPDLOG_INFO("Video decoder img_buffer cleared");
-    log_flush();
 	delete decoder;
     SPDLOG_INFO("Video decoder deleted");
-    log_flush();
 	return result;
 }

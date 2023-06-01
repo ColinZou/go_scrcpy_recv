@@ -7,7 +7,7 @@
 #include "utils.h"
 #include "logging.h"
 
-#define CTRL_LOGGER "CTRL:: "
+#define CTRL_LOGGER ""
 
 scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, SOCKET socket): device_id(dev_id), 
     client_socket(socket), 
@@ -146,7 +146,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
             }
         }
     }
-    SPDLOG_INFO("Loop end for {}", this->device_id->c_str());
+    SPDLOG_INFO("Ctrl message sender loop end for {}", this->device_id->c_str());
     delete this;
     return result;
 }

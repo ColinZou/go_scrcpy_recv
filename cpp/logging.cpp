@@ -11,19 +11,43 @@
 
 class logger_config {
     private:
-        int m_enabled = 0;
+        int m_enabled = -1;
         std::shared_ptr<spdlog::logger> logger = NULL;
     public:
         logger_config() {
             init_debug_status();
         }
-        bool enabled() {
-            return m_enabled;
-        }
         void init_logger() {
             spdlog::set_pattern("[%H:%M:%S %z] [%s#%#%!] [%n] [%^---%L---%$] [thread %t] %v");
-            if (m_enabled) {
-                spdlog::set_level(m_enabled == 2 ? spdlog::level::trace : spdlog::level::debug);
+            if (m_enabled >= 0) {
+                spdlog::level::level_enum target_level = spdlog::level::debug;
+                switch(m_enabled) {
+                    case 0:
+                        target_level = spdlog::level::trace;
+                        break;
+                    case 1:
+                        target_level = spdlog::level::debug;
+                        break;
+                    case 2:
+                        target_level = spdlog::level::info;
+                        break;
+                    case 3:
+                        target_level = spdlog::level::warn;
+                        break;
+                    case 4:
+                        target_level = spdlog::level::err;
+                        break;
+                    case 5:
+                        target_level = spdlog::level::critical;
+                        break;
+                    case 6:
+                        target_level = spdlog::level::off;
+                        break;
+                    default:
+                        target_level = spdlog::level::debug;
+                        break;
+                }
+                spdlog::set_level(target_level);
                 spdlog::flush_every(std::chrono::milliseconds(200));
                 try {
                     this->logger = spdlog::basic_logger_mt("default", "scrcpy_debug.log");
@@ -52,13 +76,10 @@ class logger_config {
             if (strlen(env_value) <= 0) {
                 m_enabled = false;
             } else {
-                if  (strcmp(env_value, "2") == 0) {
-                    m_enabled = 2;
-                } else {
-                    m_enabled = 1;
-                }
+                int value = std::atoi(env_value);
+                m_enabled = value;
             }
-            printf("SCRCPY_DEBUG=%s, debug output enabled? %s\n", env_value, m_enabled? "yes":"no");
+            printf("SCRCPY_DEBUG=%s, debug output level ? %d\n", env_value, m_enabled);
             free(env_value);
             init_logger();
         }
