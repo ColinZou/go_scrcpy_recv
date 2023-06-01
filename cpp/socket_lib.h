@@ -4,6 +4,7 @@
 #include <WinSock2.h>
 #include <map>
 #include <mutex>
+#include <shared_mutex>
 #include "model.h"
 #include <vector>
 #include "frame_img_callback.h"
@@ -128,16 +129,16 @@ private:
 	SOCKET listen_socket = INVALID_SOCKET;
 	std::string m_token;
 	int keep_accept_connection = 1;
-	std::map<std::string, image_size*>* image_size_dict = nullptr;
-	std::map<std::string, image_size*>* original_image_size_dict = nullptr;
-	std::map<std::string, std::vector<scrcpy_device_info_callback>*>* device_info_callback_dict = nullptr;
-    std::map<std::string, scrcpy_ctrl_socket_handler*>* ctrl_socket_handler_map = nullptr;
+	std::map<std::string, image_size*> *image_size_dict = nullptr;
+	std::map<std::string, image_size*> *original_image_size_dict = nullptr;
+	std::map<std::string, std::vector<scrcpy_device_info_callback>*> *device_info_callback_dict = nullptr;
+    std::map<std::string, scrcpy_ctrl_socket_handler*> *ctrl_socket_handler_map = nullptr;
     std::map<std::string, scrcpy_device_ctrl_msg_send_callback> *ctrl_sending_callback_map = nullptr;
 
 	std::mutex keep_accept_connection_lock;
 	std::mutex image_size_lock;
 	std::mutex device_info_callback_dict_lock;
-    std::mutex ctrl_socket_handler_map_lock;
+    std::shared_mutex ctrl_socket_handler_map_lock;
     std::mutex ctrl_sending_callback_map_lock;
 
 	frame_img_processor *callback_handler = new frame_img_processor();

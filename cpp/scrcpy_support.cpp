@@ -63,6 +63,7 @@ SCRCPY_API void scrcpy_device_set_ctrl_msg_send_callback(scrcpy_listener_t handl
 }
 
 SCRCPY_API void scrcpy_device_send_ctrl_msg(scrcpy_listener_t handle, char *device_id, char *msg_id, uint8_t *data, int data_len) {
+    SPDLOG_DEBUG("scrcpy_device_send_ctrl_msg msg_id={} device_id={} data_len={}", msg_id, device_id, data_len);
 	static_cast<socket_lib*>(handle)->send_ctrl_msg(device_id, msg_id, data, data_len);
 }
 

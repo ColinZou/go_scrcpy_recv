@@ -1,6 +1,7 @@
 #ifndef SCRCPY_UTILS
 #define SCRCPY_UTILS
 #include <stdint.h>
+#include <string>
 
 /*
 * A simple string compare method for sorting
@@ -42,4 +43,6 @@ void array_copy_to(char* src, char* dest, const int dest_start_index, const int 
 */
 void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_index, int copy_length);
 void print_bytes(char *header, char *data, int length);
+
+bool icompare(std::string const& a, std::string const& b);
 #endif // !SCRCPY_UTILS

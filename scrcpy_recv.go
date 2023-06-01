@@ -353,6 +353,7 @@ func (r *receiver) SendCtrlEvent(deviceId string, msgId string, data *[]byte) {
 		C.free(unsafe.Pointer(cMsgId))
 	}()
 	dataLen := len(*data)
+	fmt.Printf("Sending ctrl event, deviceId=%s msgId=%s dataLen=%d\n", deviceId, msgId, dataLen)
 	C.scrcpy_device_send_ctrl_msg(r.r, cDeviceId, cMsgId, (*C.uchar)(cData), C.int(dataLen))
 }
 func (r *receiver) invokeCtrlEventSendCallbacks(deviceId string, msgId string, sendStatus int, dataLen int) {
@@ -400,8 +401,9 @@ func (r *receiver) invokeDeviceDisconnectedCallbacks(deviceId string, connection
 		return
 	}
 	for _, method := range callbackMethods {
+		m := method
 		go func() {
-			method(r.token, deviceId, connectionType)
+			m(r.token, deviceId, connectionType)
 		}()
 	}
 }

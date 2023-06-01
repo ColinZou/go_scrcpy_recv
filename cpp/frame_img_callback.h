@@ -3,7 +3,7 @@
 #include "model.h"
 #include <map>
 #include <mutex>
-#include <deque>
+#include <queue>
 #include <thread>
 #include <Windows.h>
 
@@ -56,7 +56,7 @@ typedef struct device_frame_img_callback {
 	// lock object
 	std::mutex lock;
 	// buffered frames
-	std::deque<frame_img_callback_params*> *frames = nullptr;
+	std::queue<frame_img_callback_params*> *frames = nullptr;
 	// allocated frames for buffering
 	int allocated_frames = 0;
 	// stopping flag for this device

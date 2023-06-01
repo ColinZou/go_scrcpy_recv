@@ -111,11 +111,11 @@ public:
 void show_data(char* data, int length) {
 	for (int i = 0; i < length; i++) {
 		if (i % 32 == 0 && i > 0) {
-			spdlog::debug(DECODER_LOGGER "");
+			SPDLOG_TRACE(DECODER_LOGGER "");
 		}
-		spdlog::debug(DECODER_LOGGER "{0:#x} ", (uint8_t)data[i]);
+		SPDLOG_TRACE(DECODER_LOGGER "{0:#x} ", (uint8_t)data[i]);
 	}
-	spdlog::debug(DECODER_LOGGER "");
+	SPDLOG_TRACE(DECODER_LOGGER "");
 }
 VideoDecoder::VideoDecoder(SOCKET socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
 	int* keep_running, std::vector<uchar>* img_buffer) {
@@ -131,9 +131,9 @@ int VideoDecoder::read_device_info() {
 	int buf_size = SCRCPY_DEVICE_INFO_SIZE;
 	char device_info_data[SCRCPY_DEVICE_INFO_SIZE];
 	memset(device_info_data, 0, buf_size);
-	spdlog::debug(DECODER_LOGGER "Trying to read device info from socket {} ", this->socket);
+	SPDLOG_TRACE(DECODER_LOGGER "Trying to read device info from socket {} ", this->socket);
 	int bytes_read = recv(this->socket, device_info_data, buf_size, 0);
-	spdlog::debug(DECODER_LOGGER "{} bytes received from socket {} ", bytes_read, this->socket);
+	SPDLOG_TRACE(DECODER_LOGGER "{} bytes received from socket {} ", bytes_read, this->socket);
 	if (bytes_read < SCRCPY_DEVICE_INFO_SIZE) {
 		return 1;
 	}
@@ -143,7 +143,7 @@ int VideoDecoder::read_device_info() {
 	array_copy_to(device_info_data, this->device_id, 0, SCRCPY_DEIVCE_ID_LENGTH);
 	this->width = to_int(device_info_data, SCRCPY_DEVICE_INFO_SIZE, SCRCPY_DEIVCE_ID_LENGTH, device_size_bytes);
 	this->height = to_int(device_info_data, SCRCPY_DEVICE_INFO_SIZE, SCRCPY_DEIVCE_ID_LENGTH + device_size_bytes, device_size_bytes);
-	spdlog::debug(DECODER_LOGGER "Device {} connected, width: {}, height: {}, socket: {}", this->device_id, this->width, this->height, this->socket);
+	SPDLOG_TRACE(DECODER_LOGGER "Device {} connected, width: {}, height: {}, socket: {}", this->device_id, this->width, this->height, this->socket);
 	// callback for device info
 	if (this->callback) {
 		this->callback->on_device_info(device_id, this->width, this->height);
@@ -151,7 +151,7 @@ int VideoDecoder::read_device_info() {
 	return 0;
 }
 VideoDecoder::~VideoDecoder() {
-	spdlog::debug(DECODER_LOGGER "Cleaning video decoder for {}", this->socket);
+	SPDLOG_INFO(DECODER_LOGGER "Cleaning video decoder for {}", this->socket);
 	if (NULL != this->frame) {
 		av_frame_free(&this->frame);
 	}
@@ -178,40 +178,40 @@ int VideoDecoder::init_decoder() {
 	//·ÖÅäÄÚ´æ
 	this->packet_buffer = (char *)malloc(cfg->video_packet_buffer_size_kb * 1024);
 	if (!this->packet_buffer) {
-		spdlog::debug(DECODER_LOGGER "No enough memory for packet buffer");
+		SPDLOG_ERROR(DECODER_LOGGER "No enough memory for packet buffer");
 		return -1;
 	}
 	this->active_data = (char*)malloc(cfg->video_packet_buffer_size_kb * 1024);
 	if (!this->active_data) {
-		spdlog::debug(DECODER_LOGGER "No enough memory for active_data");
+		SPDLOG_ERROR(DECODER_LOGGER "No enough memory for active_data");
 		return -1;
 	}
 	enum AVCodecID h264 = AV_CODEC_ID_H264;
 	const AVCodec *codec = (AVCodec *)avcodec_find_decoder(h264);
 	if (!codec) {
-		spdlog::debug(DECODER_LOGGER "Could not find h264 codec");
+		SPDLOG_ERROR(DECODER_LOGGER "Could not find h264 codec");
 		return -1;
 	}
 	AVCodecContext* codec_context = avcodec_alloc_context3(codec);
 	if (!codec_context) {
-		spdlog::debug(DECODER_LOGGER "No enough memory for codec_context");
+		SPDLOG_ERROR(DECODER_LOGGER "No enough memory for codec_context");
 		return -1;
 	}
 	if (avcodec_open2(codec_context, codec, NULL) != 0) {
-		spdlog::debug(DECODER_LOGGER "Failed to open codec");
+		SPDLOG_ERROR(DECODER_LOGGER "Failed to open codec");
 		avcodec_free_context(&codec_context);
 		return -1;
 	}
 	AVCodecParserContext* codec_parser_context = av_parser_init(h264);
 	if (!codec_parser_context) {
-		spdlog::debug(DECODER_LOGGER "Failed to init paser context");
+		SPDLOG_ERROR(DECODER_LOGGER "Failed to init paser context");
 		avcodec_free_context(&codec_context);
 		return -1;
 	}
 	codec_parser_context->flags = codec_parser_context->flags | PARSER_FLAG_COMPLETE_FRAMES;
 	AVPacket* packet = av_packet_alloc();
 	if (!packet) {
-		spdlog::debug(DECODER_LOGGER "Failed to init packet");
+		SPDLOG_ERROR(DECODER_LOGGER "Failed to init packet");
 		avcodec_free_context(&codec_context);
 		av_parser_close(codec_parser_context);
 		return -1;
@@ -224,10 +224,10 @@ int VideoDecoder::init_decoder() {
 }
 int VideoDecoder::read_video_header(struct VideoHeader* header) {
 	char* header_buffer = this->header_buffer;
-	spdlog::debug(DECODER_LOGGER "Trying to read video header({} bytes) from {} into {} ", H264_HEAD_BUFFER_SIZE, this->socket, (uintptr_t)header_buffer);
+	SPDLOG_TRACE(DECODER_LOGGER "Trying to read video header({} bytes) from {} into {} ", H264_HEAD_BUFFER_SIZE, this->socket, (uintptr_t)header_buffer);
 	int bytes_received = recv(this->socket, header_buffer, H264_HEAD_BUFFER_SIZE, 0);
 	if (bytes_received != H264_HEAD_BUFFER_SIZE) {
-		spdlog::debug(DECODER_LOGGER "Error, Read {}/{} for video header", bytes_received, H264_HEAD_BUFFER_SIZE);
+		SPDLOG_ERROR(DECODER_LOGGER "Error, Read {}/{} for video header", bytes_received, H264_HEAD_BUFFER_SIZE);
 		return 1;
 	}
 	uint64_t pts = to_long(header_buffer, bytes_received, 0, 8);
@@ -244,7 +244,7 @@ int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
 		int chunk_read_plan = min(max_chunk, length - read_total);
 		int read_length = recv(this->socket, chunk, chunk_read_plan, 0);
 		if (read_length != chunk_read_plan) {
-			spdlog::debug(DECODER_LOGGER "Planned to read {} bytes, got {} bytes instead socket={}", chunk_read_plan, read_length, this->socket);
+			SPDLOG_TRACE(DECODER_LOGGER "Planned to read {} bytes, got {} bytes instead socket={}", chunk_read_plan, read_length, this->socket);
 		}
 		else if (read_length <= 0) {
 			result = -1;
@@ -252,7 +252,7 @@ int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
 		}
 		int fill_start_index = read_total;
 		read_total += read_length;
-		spdlog::debug(DECODER_LOGGER "Receiving {}/{} from network for socket {}", read_total, length, this->socket);
+		SPDLOG_TRACE(DECODER_LOGGER "Receiving {}/{} from network for socket {}", read_total, length, this->socket);
 		array_copy_to(chunk, buffer, fill_start_index, read_length);
 	}
 	return result;
@@ -271,22 +271,22 @@ int VideoDecoder::prepare_packet(uint64_t pts, int length) {
 	this->packet_stat.dts = active_packet->dts;
 	this->packet_stat.flags = active_packet->flags;
 	
-	spdlog::debug(DECODER_LOGGER "is_config = {}, has_pending = {} for socket {}", is_config ? "yes" : "no", has_pending ? "yes" : "no", this->socket);
+	SPDLOG_TRACE(DECODER_LOGGER "is_config = {}, has_pending = {} for socket {}", is_config ? "yes" : "no", has_pending ? "yes" : "no", this->socket);
 	if (is_config || has_pending) {
 		int offset = 0;
 		if (has_pending) {
-			spdlog::debug(DECODER_LOGGER "Detected pending, offset will be {} ", this->pending_data_length);
+			SPDLOG_TRACE(DECODER_LOGGER "Detected pending, offset will be {} ", this->pending_data_length);
 			offset = this->pending_data_length;
 		}
 		else {
-			spdlog::debug(DECODER_LOGGER "no pending data, saving received data to pending buffer for socket {}", this->socket);
+			SPDLOG_TRACE(DECODER_LOGGER "no pending data, saving received data to pending buffer for socket {}", this->socket);
 			array_copy_to(this->packet_buffer, this->active_data, 0, length);
 			this->pending_data_length = length;
 			this->has_pending = TRUE;
 		}
 		if (offset > 0) {
 			int new_size = this->pending_data_length + length;
-			spdlog::debug(DECODER_LOGGER "Existed pending data size = {}, current pending size = {}, final size={}, socket={}", this->pending_data_length, length, 
+			SPDLOG_TRACE(DECODER_LOGGER "Existed pending data size = {}, current pending size = {}, final size={}, socket={}", this->pending_data_length, length, 
 				new_size, this->socket);
 			array_copy_to(this->packet_buffer, this->active_data, this->pending_data_length, length);
 			this->pending_data_length = 0;
@@ -295,7 +295,7 @@ int VideoDecoder::prepare_packet(uint64_t pts, int length) {
 			this->has_pending = FALSE;
 		}
 		if (!is_config) {
-			spdlog::debug(DECODER_LOGGER "Preparing active packet");
+			SPDLOG_TRACE(DECODER_LOGGER "Preparing active packet");
 			active_packet->data = NULL;
 			int old_size = active_packet->size;
 
@@ -313,7 +313,7 @@ int VideoDecoder::prepare_packet(uint64_t pts, int length) {
 		active_packet->data = (uint8_t*)this->packet_buffer;
 	}
 	if (is_config) {
-		spdlog::debug(DECODER_LOGGER "In configuring, will not call decoder for socket {}", this->socket);
+		SPDLOG_TRACE(DECODER_LOGGER "In configuring, will not call decoder for socket {}", this->socket);
 		active_packet->data = NULL;
 		av_packet_unref(active_packet);
 		result = 1;
@@ -322,11 +322,11 @@ int VideoDecoder::prepare_packet(uint64_t pts, int length) {
 }
 image_size* VideoDecoder::get_image_size() {
 	if (NULL == this->callback) {
-		spdlog::debug(DECODER_LOGGER "no image size provider configured");
+		SPDLOG_TRACE(DECODER_LOGGER "no image size provider configured");
 		return NULL;
 	}
 	if (0 == strlen(this->device_id)) {
-		spdlog::debug(DECODER_LOGGER "no device id provided");
+		SPDLOG_TRACE(DECODER_LOGGER "no device id provided");
 		return NULL;
 	}
 	return this->callback->get_configured_img_size(this->device_id);
@@ -345,7 +345,7 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
 	if (NULL != configrued_size && configrued_size->width > 0 && configrued_size->height > 0) {
 		target_width = configrued_size->width;
 		target_height = configrued_size->height;
-		spdlog::debug(DECODER_LOGGER "Resizing image from {}x{} to {}x{}", width, height, target_width, target_height);
+		SPDLOG_TRACE(DECODER_LOGGER "Resizing image from {}x{} to {}x{}", width, height, target_width, target_height);
 	}
 
 	cv::Mat image(target_height, target_width, CV_8UC4);
@@ -367,15 +367,15 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
 	sws_scale(sws_ctx, frame->data, frame->linesize, 0, height, &image.data, cv_line_size);
 	sws_freeContext(sws_ctx);
 	std::lock_guard<std::mutex> lock_guard{ this->img_buffer_lock };
-	spdlog::debug(DECODER_LOGGER "Encoding image to png format");
+	SPDLOG_TRACE(DECODER_LOGGER "Encoding image to png format");
 	if (cv::imencode(".png", image, *this->img_buffer)) {
 		image.release();
 		int img_size = this->img_buffer->size();
-		spdlog::debug(DECODER_LOGGER "sending {} bytes to callback", img_size);
+		SPDLOG_TRACE(DECODER_LOGGER "sending {} bytes to callback", img_size);
 		uint8_t* img_data = (uint8_t*)this->img_buffer->data();
 		this->callback->on_video_callback(device_id, img_data, this->img_buffer->size(), target_width, target_height, width, height);
 	} else {
-		spdlog::debug(DECODER_LOGGER "Failed to encode a png file");
+		SPDLOG_WARN(DECODER_LOGGER "Failed to encode a png file");
 	}
 	return 0;
 }
@@ -384,7 +384,7 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
 	BOOL reset_has_pending = FALSE;
 	int status = 0;
 	AVFrame* frame = NULL;
-	spdlog::debug(DECODER_LOGGER "decode_frames pts={} length={} socket={}", pts, length, this->socket);
+	SPDLOG_TRACE(DECODER_LOGGER "decode_frames pts={} length={} socket={}", pts, length, this->socket);
 	result = this->recv_network_buffer(length, this->packet_buffer, this->packet_chunk);
 	// failed to receiving data
 	if (result != 0) {
@@ -395,20 +395,20 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
 	if (result == 1) {
 		return result;
 	}
-	spdlog::debug(DECODER_LOGGER "Fetching codec parser context for socekt {}", this->socket);
+	SPDLOG_TRACE(DECODER_LOGGER "Fetching codec parser context for socekt {}", this->socket);
 	AVCodecParserContext* parser_context = this->codec_parser_context;
 	if (parser_context->key_frame == 1) {
 		active_packet->flags = (active_packet->flags | AV_PKT_FLAG_KEY);
-		spdlog::debug(DECODER_LOGGER "Confiuring flags for socket {}", this->socket);
+		SPDLOG_TRACE(DECODER_LOGGER "Confiuring flags for socket {}", this->socket);
 	}
-	spdlog::debug(DECODER_LOGGER "Fetching codec context for socket {}", this->socket);
+	SPDLOG_TRACE(DECODER_LOGGER "Fetching codec context for socket {}", this->socket);
 	AVCodecContext* codec_context = this->codec_ctx;
-	spdlog::debug(DECODER_LOGGER "Sending packet for decoding, data pointer address is {} size={} socket={}", (uintptr_t)active_packet->data,
+	SPDLOG_TRACE(DECODER_LOGGER "Sending packet for decoding, data pointer address is {} size={} socket={}", (uintptr_t)active_packet->data,
 		active_packet->size, this->socket);
 	result = avcodec_send_packet(codec_context, active_packet);
 	if (result != 0) {
 		reset_has_pending = TRUE;
-		spdlog::debug(DECODER_LOGGER "Could not invoke avcodec_send_packet: {} socket={}", result, this->socket);
+		SPDLOG_ERROR(DECODER_LOGGER "Could not invoke avcodec_send_packet: {} socket={}", result, this->socket);
 		active_packet->data = NULL;
 		av_packet_unref(active_packet);
 		goto end;
@@ -424,7 +424,7 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
 	while (status >= 0) {
 		status = avcodec_receive_frame(codec_context, frame);
 		if (status == 0) {
-			spdlog::debug(DECODER_LOGGER "Got frame with width={} height={} socket={} ", frame->width, frame->height, this->socket);
+			SPDLOG_TRACE(DECODER_LOGGER "Got frame with width={} height={} socket={} ", frame->width, frame->height, this->socket);
 			this->rgb_frame_and_callback(codec_context, frame);
 		}
 		else if (status == AVERROR(EAGAIN)) {
@@ -440,18 +440,18 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
 	}
 	end:
 		if (has_pending && reset_has_pending) {
-			spdlog::debug(DECODER_LOGGER "Reset has_pending=false for socket {}", this->socket);
+			SPDLOG_TRACE(DECODER_LOGGER "Reset has_pending=false for socket {}", this->socket);
 			this->has_pending = FALSE;
 		}
 		return result;
 }
 int VideoDecoder::decode() {
 	if (this->read_device_info()) {
-		spdlog::debug(DECODER_LOGGER "Failed to read device info for socket {} ", this->socket);
+		SPDLOG_ERROR(DECODER_LOGGER "Failed to read device info for socket {} ", this->socket);
 		return 1;
 	}
 	if (this->init_decoder() != 0) {
-		spdlog::debug(DECODER_LOGGER "Failed to init decoder for socket {} ", this->socket);
+		SPDLOG_ERROR(DECODER_LOGGER "Failed to init decoder for socket {} ", this->socket);
 		return 1;
 	}
 	struct VideoHeader header;
@@ -462,17 +462,17 @@ int VideoDecoder::decode() {
 		if (header_size <= 0) {
 			keep_connection = 0;
 			status = 1;
-			spdlog::debug(DECODER_LOGGER "Failed to read header info from {}", this->socket);
+			SPDLOG_ERROR(DECODER_LOGGER "Failed to read header info from {}", this->socket);
 			break;
 		}
 		if (header_size != H264_HEAD_BUFFER_SIZE) {
 			status = 1;
-			spdlog::debug(DECODER_LOGGER "Failed to read header info from {}", this->socket);
+			SPDLOG_ERROR(DECODER_LOGGER "Failed to read header info from {}", this->socket);
 			break;
 		}
 		int decode_status = this->decode_frames(header.pts, header.length);
 		if (decode_status == -1) {
-			spdlog::debug(DECODER_LOGGER "Bad status for decoding video from {}, will not continue", this->socket);
+			SPDLOG_ERROR(DECODER_LOGGER "Bad status for decoding video from {}, will not continue", this->socket);
 			break;
 		}
 	}

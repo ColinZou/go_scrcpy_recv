@@ -11,7 +11,7 @@
 
 class logger_config {
     private:
-        bool m_enabled = false;
+        int m_enabled = 0;
         std::shared_ptr<spdlog::logger> logger = NULL;
     public:
         logger_config() {
@@ -21,18 +21,23 @@ class logger_config {
             return m_enabled;
         }
         void init_logger() {
-            spdlog::set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v");
+            spdlog::set_pattern("[%H:%M:%S %z] [%s#%#%!] [%n] [%^---%L---%$] [thread %t] %v");
             if (m_enabled) {
-                spdlog::set_level(spdlog::level::debug);
+                spdlog::set_level(m_enabled == 2 ? spdlog::level::trace : spdlog::level::debug);
+                spdlog::flush_every(std::chrono::milliseconds(200));
                 try {
                     this->logger = spdlog::basic_logger_mt("default", "scrcpy_debug.log");
                     spdlog::set_default_logger(this->logger);
+                    this->logger->flush_on(spdlog::level::debug);
+                    this->logger->flush_on(spdlog::level::info);
+                    this->logger->flush_on(spdlog::level::warn);
+                    this->logger->flush_on(spdlog::level::err);
                     printf("Will logging into scrcpy_debug.log\n");
                 } catch(const spdlog::spdlog_ex &ex) {
                     printf("Failed to create logger: %s\n", ex.what());
                 }
             } else {
-                spdlog::set_level(spdlog::level::err);
+                spdlog::set_level(spdlog::level::info);
             }
         }
         void init_debug_status() {
@@ -44,23 +49,31 @@ class logger_config {
             if (env_value && strlen(env_value) <= 0) {
                 m_enabled = false;
             } else {
-                m_enabled = true;
+                if  (strcmp(env_value, "2") == 0) {
+                    m_enabled = 2;
+                } else {
+                    m_enabled = 1;
+                }
             }
             printf("SCRCPY_DEBUG=%s, debug output enabled? %s\n", env_value, m_enabled? "yes":"no");
             free(env_value);
             init_logger();
         }
+        void flush() {
+            if(this->logger) {
+                this->logger->flush();
+            }
+        }
 };
 
 logger_config *cfg = new logger_config();
-
-void debug_logf_actual(int line, char *file, char *fmt, ...) {
-    if (!cfg || !cfg->enabled()) {
-        return;
-    }
-}
-
 void logging_cleanup() {
     delete cfg;
     cfg = nullptr;
+}
+void log_flush() {
+    if (!cfg) {
+        return;
+    }
+    cfg->flush();
 }

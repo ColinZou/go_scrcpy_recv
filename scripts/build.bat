@@ -3,12 +3,19 @@ REM SETUP GLOBAL VARS
 set SCRIPT_DIR=%~dp0
 set GO_SRC_FOLDER=%SCRIPT_DIR%..
 set SRCDIR=%GO_SRC_FOLDER%
+set SCRCPY_DEBUG_ENABLEDA=
 set CPP_SRC_FOLDER=%SCRIPT_DIR%..\cpp
 set LIB_BIN_VS_ROOT_FOLDER=%SCRIPT_DIR%..\lib\scrcpy_recv
 set LIB_BIN_TARGET_FOLDER=%SCRIPT_DIR%..\lib\scrcpy_recv_bin
 set LIB_BIN_VS_FOLDER=%LIB_BIN_VS_ROOT_FOLDER%\build\x64-release
 set CMAKE_WINDOWS_KITS_10_DIR="C:\Program Files (x86)\Windows Kits\10"
 
+IF /i "%1" == "debug" (
+    set SCRCPY_DEBUG_ENABLED=1
+)
+IF /i "%1" == "trace" (
+    set SCRCPY_DEBUG_ENABLED=2
+)
 
 echo Looking for vswhere.exe...
 set "vswhere=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"

@@ -22,8 +22,14 @@ func onDeviceInfoCallback(deviceId string, screenWidth int, screenHeight int) {
 	listener.SetFrameImageSize(deviceId, screenWidth/3, screenHeight/3)
 	time.Sleep(1 * time.Second)
 	fmt.Println("GOLANG:: About to send a ctrl event")
+}
+func sendFakeCtrlEvent() {
 	data := make([]byte, 14)
-	listener.SendCtrlEvent(deviceId, "test001", &data)
+	data[0] = 0
+	data[1] = byte(2)
+	data[2] = byte(3)
+	data[3] = byte(40)
+	listener.SendCtrlEvent(deviceId, deviceId, &data)
 }
 func onFrameImageCallback(deviceId string, imgData *[]byte, imgSize *scrcpy_recv.ImageSize, screenSize *scrcpy_recv.ImageSize) {
 	frameNo += 1
@@ -96,6 +102,7 @@ func main() {
 		fmt.Println("0: shutdown scrcpy receiver socket")
 		fmt.Println("1: registerEvents")
 		fmt.Println("2: unregisterEvents")
+		fmt.Println("3: sendFakeCtrlEvent")
 		fmt.Println("q: quit")
 		var choice string
 		n, err := fmt.Scanln(&choice)
@@ -114,8 +121,9 @@ func main() {
 		case "1":
 			registerEvents(deviceId, listener)
 		case "2":
-			fmt.Println("GOLANG:: unregisterAllEvents")
 			unregisterAllEvents(deviceId, listener)
+		case "3":
+			sendFakeCtrlEvent()
 		case "q":
 			break_out = true
 		default:

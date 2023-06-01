@@ -4,7 +4,7 @@
 #include <string>
 #include <mutex>
 #include <WinSock2.h>
-#include <deque>
+#include <queue>
 #include <functional>
 
 typedef struct scrcpy_ctrl_msg {
@@ -29,8 +29,8 @@ class scrcpy_ctrl_socket_handler
         SOCKET client_socket = INVALID_SOCKET;
         std::mutex stat_lock;
         std::mutex outgoing_queue_lock;
-        std::deque<scrcpy_ctrl_msg*> *outgoing_queue;
-        std::deque<scrcpy_ctrl_msg_trashed*> *outgoing_trash;
+        std::queue<scrcpy_ctrl_msg*> *outgoing_queue;
+        std::queue<scrcpy_ctrl_msg_trashed*> *outgoing_trash;
         bool keep_running = true;
 
         void cleanup_trash();

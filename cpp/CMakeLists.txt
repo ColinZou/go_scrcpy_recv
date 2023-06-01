@@ -12,6 +12,17 @@ ENDIF()
 SET(VCPKG_TARGET_TRIPLET "x64-windows-static")
 SET(CMAKE_TOOLCHAIN_FILE ${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake)
 
+message("SCRCPY_DEBUG_ENABLED = " $ENV{SCRCPY_DEBUG_ENABLED})
+IF(DEFINED ENV{SCRCPY_DEBUG_ENABLED})
+    IF ("2" STREQUAL $ENV{SCRCPY_DEBUG_ENABLED})
+        add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
+        message("ADDING -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE")
+    ELSE()
+        add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG)
+        message("ADDING -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG")
+    ENDIF()
+ENDIF()
+
 set(GO_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." )
 
 add_definitions(-DWIN_DLL=1)
@@ -68,6 +79,7 @@ option(gtest_disable_pthreads "Disable uses of pthreads in gtest." ON)
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET scrcpy_desktop PROPERTY CXX_STANDARD 20)
+  set_property(TARGET scrcpy_recv PROPERTY CXX_STANDARD 20)
 endif()
 
 if(WIN32)

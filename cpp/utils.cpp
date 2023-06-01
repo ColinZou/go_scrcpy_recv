@@ -52,16 +52,30 @@ void print_bytes(char *header, char *data, int length) {
         int index = i%8;
         if (index == 0) {
             if (has_data) {
-                debug_logf("%s %s\n", header, buffer);
+                SPDLOG_DEBUG("{} {}", header, buffer);
             }
             memset(buffer, 0, 128);
             has_data = false;
         }
-        sprintf(buffer, "%s%s0x%02X", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
+        sprintf_s(buffer, 128, "%s%s0x%02X", buffer, index > 0 ? " ": "", (uint8_t)data[i]);
         has_data = true;
     }
     if (has_data) {
-        debug_logf("%s %s\n", header, buffer);
+        SPDLOG_DEBUG("{} {}", header, buffer);
     }
     free(buffer);
+}
+
+bool icompare_pred(unsigned char a, unsigned char b) {
+    return std::tolower(a) == std::tolower(b);
+}
+
+bool icompare(std::string const& a, std::string const& b) {
+    if (a.length() == b.length()) {
+        return std::equal(b.begin(), b.end(),
+                           a.begin(), icompare_pred);
+    }
+    else {
+        return false;
+    }
 }
