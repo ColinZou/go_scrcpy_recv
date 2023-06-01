@@ -2,11 +2,10 @@
 #include "utils.h"
 #include <thread>
 #include "logging.h"
-#define FIP_LOGGER ""
 #define MAX_IMG_BUFFER_SIZE 1 * 1024 * 1024
 
 int frame_img_processor::callback_thread(device_frame_img_callback *callback_item) {
-	SPDLOG_DEBUG(FIP_LOGGER "CB:: Running thread for frame callback of device {}", callback_item->device_id);
+	SPDLOG_DEBUG("Running thread for frame callback of device {}", callback_item->device_id);
 	BOOL wait_for_next = FALSE;
 	while (true) {
 		if (wait_for_next) {
@@ -31,7 +30,6 @@ int frame_img_processor::callback_thread(device_frame_img_callback *callback_ite
                 total --;
 				if (cur_frame->status == CALLBACK_PARAM_PENDING) {
 					allocated_frame = cur_frame;
-                    // remove it from deque for now
                     break;
 				}
                 frames->push(cur_frame);
@@ -44,7 +42,7 @@ int frame_img_processor::callback_thread(device_frame_img_callback *callback_ite
         // tiny lock for the allocated_frame
 		std::lock_guard<std::mutex> allocated_frame_guard{allocated_frame->lock};
 		allocated_frame->status = CALLBACK_PARAM_SENDING;
-        // put it back to queue
+        // put it back to queue if there's no callback handler
         if (callback_item->handler_count <= 0) {
             allocated_frame->status = CALLBACK_PARAM_SENT;
             frames->push(allocated_frame);
@@ -55,20 +53,18 @@ int frame_img_processor::callback_thread(device_frame_img_callback *callback_ite
 		// call the handlers
 		for (int i = 0; i < callback_item->handler_count; i++) {
 			frame_callback_handler callback = callback_item->handlers[i];
-            SPDLOG_TRACE(FIP_LOGGER "Invoking callback handler {} for device_id={} callback param is {}", (uintptr_t)callback, 
+            SPDLOG_TRACE("Invoking callback handler {} for device_id={} callback param is {}", (uintptr_t)callback, 
                     callback_item->device_id, (uintptr_t) allocated_frame);
-			scrcpy_rect img_size = scrcpy_rect{ allocated_frame->w, allocated_frame->h};
+			scrcpy_rect img_size = scrcpy_rect{ allocated_frame->w, allocated_frame->h };
 			scrcpy_rect screen_size = scrcpy_rect{ allocated_frame->raw_w, allocated_frame->raw_h };
 			callback(callback_item->token, callback_item->device_id, 
                     allocated_frame->frame_data, allocated_frame->frame_data_size,
                     img_size, screen_size);
 		}
-        SPDLOG_TRACE(FIP_LOGGER "Setting status to CALLBACK_PARAM_SENT for param {} device={}", (uintptr_t) allocated_frame, allocated_frame->device_id);
         allocated_frame->status = CALLBACK_PARAM_SENT;
-        SPDLOG_TRACE(FIP_LOGGER "Put the frame {} back to {} device={}", (uintptr_t) allocated_frame, (uintptr_t) frames, allocated_frame->device_id);
 		frames->push(allocated_frame);
 	}
-	SPDLOG_DEBUG(FIP_LOGGER "Stopped thread for frame callback of device {}", callback_item->device_id);
+	SPDLOG_DEBUG("Stopped thread for frame callback of device {}", callback_item->device_id);
     release_device_img_callback(callback_item);
 	return 0;
 }
@@ -106,34 +102,36 @@ void frame_img_processor::release_device_img_callback(device_frame_img_callback*
     }
     delete callback_item;
 }
-frame_img_processor::frame_img_processor() :
-    registry(new std::map<std::string, device_frame_img_callback*>()){  }
-    int frame_img_processor::start_callback_thread(char* device_id, device_frame_img_callback* handler_container) {
-        // start thread
-        handler_container->stop = 0;
-        std::thread callback_thread(&frame_img_processor::callback_thread, this, handler_container);
-        callback_thread.detach();
-        handler_container->thread_handle = callback_thread.native_handle();
-        return 0;
-    }
+
+frame_img_processor::frame_img_processor() : registry(new std::map<std::string, device_frame_img_callback*>()){ }
+
+int frame_img_processor::start_callback_thread(char* device_id, device_frame_img_callback* handler_container) {
+    // start thread
+    handler_container->stop = 0;
+    std::thread callback_thread(&frame_img_processor::callback_thread, this, handler_container);
+    callback_thread.detach();
+    handler_container->thread_handle = callback_thread.native_handle();
+    return 0;
+}
+
 void frame_img_processor::add(char *device_id, frame_callback_handler callback, char *token) {
     // lock global
     std::lock_guard<std::mutex> guard{ this->lock };
     auto entry = this->registry->find(std::string(device_id));
     auto end_item = this->registry->end();
-    SPDLOG_DEBUG(FIP_LOGGER "{} Trying to add frame image callback handler {} for device {} existing? {}",(uintptr_t)this, (uintptr_t)callback, 
+    SPDLOG_DEBUG("{} Trying to add frame image callback handler {} for device {} existing? {}",(uintptr_t)this, (uintptr_t)callback, 
             device_id, end_item == entry ? "no":"yes");
     if (end_item == entry) {
-        SPDLOG_DEBUG(FIP_LOGGER "Need to create a new callback container for device {}", device_id);
+        SPDLOG_DEBUG("Need to create a new callback container for device {}", device_id);
         frame_callback_handler* handlers = (frame_callback_handler*)malloc(sizeof(frame_callback_handler) * PRE_ALLOC_CALLBASCK_SIZE);
         if (!handlers) {
-            SPDLOG_ERROR(FIP_LOGGER "No enough memory for storing callbacks");
+            SPDLOG_ERROR("No enough memory for storing callbacks");
             return;
         }
         handlers[0] = callback;
         device_frame_img_callback* callback_item = new device_frame_img_callback();
         if (!callback_item) {
-            SPDLOG_ERROR(FIP_LOGGER "No enough memory for storing callback container");
+            SPDLOG_ERROR("No enough memory for storing callback container");
             return;
         }
         char *device_id_cpy = (char*)malloc(sizeof(char) * strlen(device_id) + 1);
@@ -147,14 +145,14 @@ void frame_img_processor::add(char *device_id, frame_callback_handler callback, 
         callback_item->frames = new std::queue<frame_img_callback_params*>();
         auto existing = this->registry->emplace(std::string(device_id_cpy), callback_item);
         auto callback_added = existing.second;
-        SPDLOG_INFO(FIP_LOGGER "Creating new frame image callback handler holder for device={} ok ? {} devices registered {}", 
+        SPDLOG_INFO("Creating new frame image callback handler holder for device={} ok ? {} devices registered {}", 
                 device_id_cpy, callback_added ? "YES":"NO", this->registry->size());
         if (callback_added) {
             // if failed to start thread
             this->start_callback_thread(device_id_cpy, callback_item);
         } else {
             // just in case
-            SPDLOG_DEBUG(FIP_LOGGER "It should not be happened, the device {} already had callbacks", device_id_cpy);
+            SPDLOG_DEBUG("It should not be happened, the device {} already had callbacks", device_id_cpy);
             release_device_img_callback(callback_item);
         }
     } else {
@@ -168,12 +166,12 @@ void frame_img_processor::add(char *device_id, frame_callback_handler callback, 
             int new_count = old_count + 1;
             int multiple = new_count / PRE_ALLOC_CALLBASCK_SIZE;
             int amount = new_count % PRE_ALLOC_CALLBASCK_SIZE > 1 ? multiple + 1 : multiple;
-            SPDLOG_DEBUG(FIP_LOGGER "Re-alloc callback of device {} from {} to {}", handler_container->device_id, old_count, amount);
+            SPDLOG_DEBUG("Re-alloc callback of device {} from {} to {}", handler_container->device_id, old_count, amount);
             // save the new amount
             handler_container->allocated_handler_space = amount;
             frame_callback_handler* new_handlers = (frame_callback_handler*)malloc(sizeof(frame_callback_handler) * PRE_ALLOC_CALLBASCK_SIZE * amount);
             if (!new_handlers) {
-                SPDLOG_ERROR(FIP_LOGGER "No enough ram when trying to allocate {} frame_callback_handlers", amount);
+                SPDLOG_ERROR("No enough ram when trying to allocate {} frame_callback_handlers", amount);
                 return;
             }
             for (int i = 0; i < old_count; i++) {
@@ -191,9 +189,9 @@ void frame_img_processor::del(char* device_id, frame_callback_handler callback) 
     // global lock
     std::lock_guard<std::mutex> guard{ this->lock };
     auto entry = this->registry->find(std::string(device_id));
-    SPDLOG_INFO(FIP_LOGGER "Trying to remove frame callback handler {} for device {}", (uintptr_t)callback, device_id);
+    SPDLOG_INFO("Trying to remove frame callback handler {} for device {}", (uintptr_t)callback, device_id);
     if (entry == this->registry->end()) {
-        SPDLOG_ERROR(FIP_LOGGER "Device {} was not register of callback {}", device_id, (uintptr_t) callback);
+        SPDLOG_ERROR("Device {} was not register of callback {}", device_id, (uintptr_t) callback);
         return;
     }
     device_frame_img_callback* handler_container = entry->second;
@@ -207,7 +205,7 @@ void frame_img_processor::del(char* device_id, frame_callback_handler callback) 
             //clear current item
             handlers[i] = NULL;
             handler_container->handler_count--;
-            SPDLOG_INFO(FIP_LOGGER "Removed frame callback handler {} for device {}", (uintptr_t)callback, device_id);
+            SPDLOG_INFO("Removed frame callback handler {} for device {}", (uintptr_t)callback, device_id);
             continue;
         }
         if (i > start_index) {
@@ -221,7 +219,7 @@ void frame_img_processor::del(char* device_id, frame_callback_handler callback) 
         handler_container->stop = 1;
         // remove from register
         this->registry->erase(entry);
-        SPDLOG_INFO(FIP_LOGGER "Also remove dict entry for device {}", device_id);
+        SPDLOG_INFO("Also remove dict entry for device {}", device_id);
     }
 }
 frame_img_processor::~frame_img_processor() {
@@ -246,7 +244,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
         return;
     }
     int buffed_frames = handler_container->allocated_frames;
-    SPDLOG_TRACE(FIP_LOGGER "PREP:: Trying to add param for device {}, lock acquired, already had {} allocted frames. data size is {}", 
+    SPDLOG_TRACE("Trying to add param for device {}, lock acquired, already had {} allocted frames. data size is {}", 
             device_id, buffed_frames, frame_data_size);
     frame_img_callback_params* params = nullptr;
     if (buffed_frames >= MAX_PENDING_FRAMES ) {
@@ -269,38 +267,38 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
     if(nullptr == params) {
         params = new frame_img_callback_params();
         if (!params) {
-            SPDLOG_ERROR(FIP_LOGGER "PREP:: No enough memory for initing CallbackParams");
+            SPDLOG_ERROR("No enough memory for initing CallbackParams");
             return;
         }
         auto buffer_size = calc_buffer_size(frame_data_size, MAX_IMG_BUFFER_SIZE);
-        SPDLOG_DEBUG(FIP_LOGGER "PREP:: Allocating {} bytes for fram cache", buffer_size);
+        SPDLOG_DEBUG("Allocating {} bytes for fram cache", buffer_size);
         params->frame_data = (uint8_t*)malloc(buffer_size);
         params->buffer_size = buffer_size;
-        SPDLOG_DEBUG(FIP_LOGGER "PREP:: Allocated {} bytes for fram cache", buffer_size);
+        SPDLOG_DEBUG("Allocated {} bytes for fram cache", buffer_size);
         if (!params->frame_data) {
-            SPDLOG_ERROR(FIP_LOGGER "PREP:: No enough memory for initing frame_data");
+            SPDLOG_ERROR("No enough memory for initing frame_data");
             delete params;
             return;
         }
         handler_container->allocated_frames++;
     }
     if (params == nullptr) {
-        SPDLOG_ERROR(FIP_LOGGER "PREP:: FATAL: Could not allocate a param for sending callback");
+        SPDLOG_ERROR("FATAL: Could not allocate a param for sending callback");
         return;
     }
-    SPDLOG_TRACE(FIP_LOGGER "PREP:: Current callback param is {}", (uintptr_t)params);
+    SPDLOG_TRACE("Current callback param is {}", (uintptr_t)params);
     // realloc ram
     if (params->buffer_size < frame_data_size) {
         free(params->frame_data);
         auto buffer_size = calc_buffer_size(frame_data_size, MAX_IMG_BUFFER_SIZE);
-        SPDLOG_TRACE(FIP_LOGGER "PREP:: Re-allocating {} bytes for fram cache", buffer_size);
+        SPDLOG_TRACE("Re-allocating {} bytes for fram cache", buffer_size);
         params->frame_data = (uint8_t*)malloc(buffer_size);
         if(!params->frame_data) {
             SPDLOG_ERROR("No enough for re-allocating {} bytes for frame image", buffer_size);
             return;
         }
         params->buffer_size = buffer_size;
-        SPDLOG_TRACE(FIP_LOGGER "PREP:: Re-allocated {} bytes for fram cache", buffer_size);
+        SPDLOG_TRACE("Re-allocated {} bytes for fram cache", buffer_size);
     }
     // the callback param lock
     std::lock_guard<std::mutex> param_lock{ params->lock };
@@ -315,7 +313,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
     params->raw_h = raw_h;
     // push the frame to back
     handler_container->frames->push(params);
-    SPDLOG_TRACE(FIP_LOGGER "PREP:: Added frame {} for device {} to callback queue, data size {}, queue size: {}", (uintptr_t)params, 
+    SPDLOG_TRACE("Added frame {} for device {} to callback queue, data size {}, queue size: {}", (uintptr_t)params, 
             handler_container->device_id, 
             frame_data_size, handler_container->frames->size());
 }
@@ -323,18 +321,17 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
 void frame_img_processor::clean_device_img_callback_state(std::string key, bool remove_from_registry) {
     auto entry = this->registry->find(key);
     if (entry == this->registry->end()) {
-        SPDLOG_DEBUG(FIP_LOGGER "{} Could not find callback container for device {} from {} keys ", 
-                uintptr_t(this), 
+        SPDLOG_DEBUG("Could not find callback container for device {} from {} keys ", 
                 key.c_str(), this->registry->size());
         for(auto first = this->registry->begin(); first != this->registry->end(); first++) {
-            SPDLOG_DEBUG(FIP_LOGGER "Found key {}", first->first.c_str());
+            SPDLOG_DEBUG("Found key {}", first->first.c_str());
         }
         return;
     }
     device_frame_img_callback* handler_container = entry->second;
     // must lock first
     std::lock_guard<std::mutex> lock(handler_container->lock);
-    SPDLOG_INFO(FIP_LOGGER "Marking callback container {} to shutdown for device {}",(uintptr_t)handler_container, handler_container->device_id);
+    SPDLOG_INFO("Marking callback container {} to shutdown for device {}",(uintptr_t)handler_container, handler_container->device_id);
     // mark as stop
     handler_container->stop = 1;
     if (remove_from_registry) {
@@ -342,7 +339,7 @@ void frame_img_processor::clean_device_img_callback_state(std::string key, bool 
     }
 }
 void frame_img_processor::del_all(char* device_id) {
-    SPDLOG_INFO(FIP_LOGGER "{} Trying to remove all frame image callbacks for {}", (uintptr_t) this, device_id);
+    SPDLOG_INFO("{} Trying to remove all frame image callbacks for {}", (uintptr_t) this, device_id);
     clean_device_img_callback_state(std::string(device_id), true);
 }
 int frame_img_processor::calc_buffer_size(int frame_data_size, int current_buffer_size) {
