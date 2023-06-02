@@ -5,68 +5,68 @@
 #define MAX_IMG_BUFFER_SIZE 1 * 1024 * 1024
 
 int frame_img_processor::callback_thread(device_frame_img_callback *callback_item) {
-	SPDLOG_DEBUG("Running thread for frame callback of device {}", callback_item->device_id);
-	BOOL wait_for_next = FALSE;
-	while (true) {
-		if (wait_for_next) {
-			wait_for_next = FALSE;
-			std::this_thread::sleep_for(std::chrono::nanoseconds(50));
+    SPDLOG_DEBUG("Running thread for frame callback of device {}", callback_item->device_id);
+    BOOL wait_for_next = FALSE;
+    while (true) {
+        if (wait_for_next) {
+            wait_for_next = FALSE;
+            std::this_thread::sleep_for(std::chrono::nanoseconds(50));
             continue;
-		}
+        }
         auto *frames = callback_item->frames;
         // gaint lock for whole callback_item
-		std::lock_guard<std::mutex> wait_lock(callback_item->lock);
-		if (callback_item->stop > 0) {
-			SPDLOG_WARN("Stopping frame image callback thread  for device {}", callback_item->device_id);
-			break;
-		}
-		frame_img_callback_params* allocated_frame = NULL;
-		if (!frames->empty()) {
-			//grab a frame from front
+        std::lock_guard<std::mutex> wait_lock(callback_item->lock);
+        if (callback_item->stop > 0) {
+            SPDLOG_WARN("Stopping frame image callback thread  for device {}", callback_item->device_id);
+            break;
+        }
+        frame_img_callback_params* allocated_frame = NULL;
+        if (!frames->empty()) {
+            //grab a frame from front
             int total = frames->size();
-			while(!frames->empty() && total > 0) {
-				frame_img_callback_params* cur_frame = frames->front();
+            while(!frames->empty() && total > 0) {
+                frame_img_callback_params* cur_frame = frames->front();
                 frames->pop();
                 total --;
-				if (cur_frame->status == CALLBACK_PARAM_PENDING) {
-					allocated_frame = cur_frame;
+                if (cur_frame->status == CALLBACK_PARAM_PENDING) {
+                    allocated_frame = cur_frame;
                     break;
-				}
+                }
                 frames->push(cur_frame);
-			}
-		}
-		if (NULL == allocated_frame) {
-			wait_for_next = TRUE;
-			continue;
-		}
+            }
+        }
+        if (NULL == allocated_frame) {
+            wait_for_next = TRUE;
+            continue;
+        }
         // tiny lock for the allocated_frame
-		std::lock_guard<std::mutex> allocated_frame_guard{allocated_frame->lock};
-		allocated_frame->status = CALLBACK_PARAM_SENDING;
+        std::lock_guard<std::mutex> allocated_frame_guard{allocated_frame->lock};
+        allocated_frame->status = CALLBACK_PARAM_SENDING;
         // put it back to queue if there's no callback handler
         if (callback_item->handler_count <= 0) {
             allocated_frame->status = CALLBACK_PARAM_SENT;
             frames->push(allocated_frame);
             continue;
         }
-		SPDLOG_TRACE("Invoking frame callback device={} frame data size={} param pointer {} total handlers = {}", allocated_frame->device_id, 
-			allocated_frame->frame_data_size, (uintptr_t) allocated_frame, callback_item->handler_count);
-		// call the handlers
-		for (int i = 0; i < callback_item->handler_count; i++) {
-			frame_callback_handler callback = callback_item->handlers[i];
+        SPDLOG_TRACE("Invoking frame callback device={} frame data size={} param pointer {} total handlers = {}", allocated_frame->device_id, 
+                allocated_frame->frame_data_size, (uintptr_t) allocated_frame, callback_item->handler_count);
+        // call the handlers
+        for (int i = 0; i < callback_item->handler_count; i++) {
+            frame_callback_handler callback = callback_item->handlers[i];
             SPDLOG_TRACE("Invoking callback handler {} for device_id={} callback param is {}", (uintptr_t)callback, 
                     callback_item->device_id, (uintptr_t) allocated_frame);
-			scrcpy_rect img_size = scrcpy_rect{ allocated_frame->w, allocated_frame->h };
-			scrcpy_rect screen_size = scrcpy_rect{ allocated_frame->raw_w, allocated_frame->raw_h };
-			callback(callback_item->token, callback_item->device_id, 
+            scrcpy_rect img_size = scrcpy_rect{ allocated_frame->w, allocated_frame->h };
+            scrcpy_rect screen_size = scrcpy_rect{ allocated_frame->raw_w, allocated_frame->raw_h };
+            callback(callback_item->token, callback_item->device_id, 
                     allocated_frame->frame_data, allocated_frame->frame_data_size,
                     img_size, screen_size);
-		}
+        }
         allocated_frame->status = CALLBACK_PARAM_SENT;
-		frames->push(allocated_frame);
-	}
-	SPDLOG_DEBUG("Stopped thread for frame callback of device {}", callback_item->device_id);
+        frames->push(allocated_frame);
+    }
+    SPDLOG_DEBUG("Stopped thread for frame callback of device {}", callback_item->device_id);
     release_device_img_callback(callback_item);
-	return 0;
+    return 0;
 }
 void frame_img_processor::release_device_img_callback(device_frame_img_callback* callback_item) {
     std::lock_guard<std::mutex> lock(callback_item->lock);

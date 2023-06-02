@@ -13,7 +13,7 @@ scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, SOCK
     outgoing_trash(new std::queue<scrcpy_ctrl_msg_trashed*>()){
         auto dev_id_cloned = new std::string(dev_id->c_str());
         this->device_id = dev_id_cloned;
-}
+    }
 scrcpy_ctrl_socket_handler::~scrcpy_ctrl_socket_handler() {
     if(this->outgoing_queue) {
         std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);

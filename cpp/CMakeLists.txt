@@ -23,7 +23,6 @@ if(DEFINED ENV{SCRCPY_DEBUG_ENABLED})
     endif()
 endif()
 
-set(GO_LIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 add_definitions(-DWIN_DLL=1)
 
