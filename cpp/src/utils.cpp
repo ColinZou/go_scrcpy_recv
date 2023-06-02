@@ -44,11 +44,17 @@ uint32_t to_int(char* from_data, int total_length, int from_index, int size) {
     return result;
 }
 void array_copy_to(char* src, char* dest, const int dest_start_index, const int copy_length) {
+    if (!src || !dest || dest_start_index<0 || copy_length < 0) {
+        return;
+    }
     for (int i = 0; i < copy_length; i++) {
         dest[dest_start_index + i] = src[i];
     }
 }
 void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_index, int copy_length) {
+    if(!src || !dest || src_start_index< 0 || dest_start_index < 0 || copy_length < 0){
+        return;
+    }
     for (int i = 0; i < copy_length; i++) {
         dest[dest_start_index + i] = src[src_start_index + i];
     }
@@ -74,16 +80,3 @@ void print_bytes(char *header, char *data, int length) {
     free(buffer);
 }
 
-bool icompare_pred(unsigned char a, unsigned char b) {
-    return std::tolower(a) == std::tolower(b);
-}
-
-bool icompare(std::string const& a, std::string const& b) {
-    if (a.length() == b.length()) {
-        return std::equal(b.begin(), b.end(),
-                a.begin(), icompare_pred);
-    }
-    else {
-        return false;
-    }
-}

@@ -53,7 +53,12 @@ void test_to_int() {
 void test_array_copy_to() {
     SPDLOG_INFO("test_array_copy_to");
     log_flush();
-     
+    std::string a_str = "abcDef"; 
+    std::string b_str = "hijKlm";
+    std::string b_str_oroginal = std::string(b_str);
+    array_copy_to((char*)a_str.c_str(), (char *)b_str.c_str(), 0, 6);
+    assert(strcmp(a_str.c_str(), b_str.c_str()) == 0);
+    assert(strcmp(a_str.c_str(), b_str_oroginal.c_str()) != 0);
 }
 
 int main() {
@@ -62,6 +67,7 @@ int main() {
     test_string_compartor();
     test_to_long();
     test_to_int();
+    test_array_copy_to();
     logging_cleanup();
     return 0;
 }
