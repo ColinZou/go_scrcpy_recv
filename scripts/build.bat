@@ -38,16 +38,18 @@ echo Found %vc_dir%
 call "%vc_dir%\Common7\Tools\vsdevcmd.bat" -arch=x86 -host_arch=x64
 
 REM build dll
+set BUILD_FOLDER=build
+
 echo Building cpp &&^
 cd %CPP_SRC_FOLDER% &&^
 IF NOT EXIST %LIB_BIN_TARGET_FOLDER% (mkdir %LIB_BIN_TARGET_FOLDER%) else (echo %LIB_BIN_TARGET_FOLDER% existed ) &&^
-IF NOT EXIST release (mkdir release) else (echo relase folder is ready && DEL /S /F /Q release) &&^
+IF NOT EXIST "%BUILD_FOLDER%" (mkdir "%BUILD_FOLDER%" ) else (echo relase folder is ready && DEL /S /F /Q "%BUILD_FOLDER%") &&^
 echo clean built binary first && del /S /F /Q %LIB_BIN_TARGET_FOLDER% &&^
-cd release && cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . --target scrcpy_recv scrcpy_desktop --config Release &&^
+cd %BUILD_FOLDER% && cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . --target scrcpy_recv scrcpy_demo_app --config Release &&^
 echo CPP build succeed &&^
-echo COPY BINARYIES FROM %CPP_SRC_FOLDER%\release\Release to %LIB_BIN_TARGET_FOLDER% &&^
-xcopy /Y Release\*.dll %LIB_BIN_TARGET_FOLDER% &&^
-xcopy /Y Release\*.lib %LIB_BIN_TARGET_FOLDER% &&^
+echo COPY BINARYIES FROM %CPP_SRC_FOLDER%\%BUILD_FOLDER%\src\Release to %LIB_BIN_TARGET_FOLDER% &&^
+xcopy /Y src\Release\*.dll %LIB_BIN_TARGET_FOLDER% &&^
+xcopy /Y src\Release\*.lib %LIB_BIN_TARGET_FOLDER% &&^
 echo ************************ &&^
 echo Building go example code &&^
 go build -C %GO_SRC_FOLDER% -o build\basic.exe examples\basic.go &&^

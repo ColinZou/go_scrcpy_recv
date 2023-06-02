@@ -38,3 +38,4 @@ cpp/debug/
 **/.clangd
 *.log
 *.copy
+cpp/build/*
