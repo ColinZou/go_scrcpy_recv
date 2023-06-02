@@ -41,7 +41,7 @@ call "%vc_dir%\Common7\Tools\vsdevcmd.bat" -arch=x86 -host_arch=x64
 REM build dll
 set BUILD_FOLDER=build
 set BUILD_CFG=Release
-set ALL_TESTS=test_utils
+set ALL_TESTS=test_utils test_frame_img_callback
 
 echo Building cpp &&^
 cd %CPP_SRC_FOLDER% &&^
