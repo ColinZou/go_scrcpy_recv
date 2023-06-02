@@ -82,7 +82,7 @@ std::string* socket_lib::read_socket_type(ClientConnection* connection) {
     int received = recv(connection->client_socket, data, buf_size, 0);
     SPDLOG_DEBUG("received {}/{} bytes header", received, SCRCPY_SOCKET_HEADER_SIZE);
     if (received != buf_size) {
-        return nullptr;
+        return NULL;
     }
 
     array_copy_to2(data, device_id, 0, 0, SCRCPY_HEADER_DEVICE_ID_LEN);
@@ -167,11 +167,11 @@ end:
         }
         SPDLOG_INFO("Cleaning device id data of device_id={}", connection->device_id->c_str());
         delete connection->device_id;
-        connection->device_id = nullptr;
+        connection->device_id = NULL;
     }
     if (connection->connection_type) {
         delete connection->connection_type;
-        connection->connection_type = nullptr;
+        connection->connection_type = NULL;
     }
     SPDLOG_INFO("Deleting {} connection", connection_type);
     delete connection;
@@ -193,7 +193,7 @@ int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
             continue;
         }
         SPDLOG_DEBUG("New connection accpeted:{}", client_socket);
-        ClientConnection* connection = nullptr;
+        ClientConnection* connection = NULL;
         connection = new ClientConnection();
         if (!connection) {
             SPDLOG_ERROR("No enough memory to handling incoming connection {}", client_socket);
@@ -214,7 +214,7 @@ int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
 int socket_lib::startup(char* address, int network_buffer_size_kb, int video_packet_buffer_size_kb) {
     WSADATA wsaData;
     int result;
-    struct addrinfo* addr_result = nullptr;
+    struct addrinfo* addr_result = NULL;
     struct addrinfo addr_hints;
     struct connection_buffer_config cfg = connection_buffer_config{
         network_buffer_size_kb,
@@ -299,7 +299,7 @@ void socket_lib::remove_all_callbacks(char* device_id) {
 socket_lib::~socket_lib() {
     if (this->callback_handler) {
         delete this->callback_handler;
-        this->callback_handler = nullptr;
+        this->callback_handler = NULL;
     }
     // free image size
     free_image_size_dict(this->image_size_dict);
@@ -315,19 +315,19 @@ socket_lib::~socket_lib() {
             first++;
         }
         delete this->device_info_callback_dict;
-        this->device_info_callback_dict = nullptr;
+        this->device_info_callback_dict = NULL;
     }
     if (this->ctrl_socket_handler_map) {
         std::unique_lock lock(this->ctrl_socket_handler_map_lock);
         this->ctrl_socket_handler_map->clear();
         delete this->ctrl_socket_handler_map;
-        this->ctrl_socket_handler_map = nullptr;
+        this->ctrl_socket_handler_map = NULL;
     }
     if (this->ctrl_sending_callback_map) {
         std::lock_guard<std::mutex> lock(this->ctrl_sending_callback_map_lock);
         this->ctrl_sending_callback_map->clear();
         delete this->ctrl_sending_callback_map;
-        this->ctrl_sending_callback_map = nullptr;
+        this->ctrl_sending_callback_map = NULL;
     }
 }
 
@@ -337,7 +337,7 @@ image_size* socket_lib::internal_get_image_size(std::map<std::string, image_size
     if (item != dict->end()) {
         return item->second;
     }
-    return nullptr;
+    return NULL;
 }
 void socket_lib::free_image_size_dict(std::map<std::string, image_size*>* dict) {
     auto first_one = dict->begin();
@@ -421,7 +421,7 @@ void socket_lib::send_ctrl_msg(char *device_id, char *msg_id, uint8_t* data, int
 
     std::shared_lock lock(this->ctrl_socket_handler_map_lock);
     auto map = this->ctrl_socket_handler_map;
-    scrcpy_ctrl_socket_handler *handler = nullptr;
+    scrcpy_ctrl_socket_handler *handler = NULL;
 
     if(!map->empty()) {
         SPDLOG_DEBUG("Trying to go find handler from {} for {}", (uintptr_t) map, device_id);
@@ -434,8 +434,8 @@ void socket_lib::send_ctrl_msg(char *device_id, char *msg_id, uint8_t* data, int
     } else {
         SPDLOG_WARN("No ctrl socket register within {}", (uintptr_t)map);
     }
-    SPDLOG_DEBUG("Found existing ctrl channel for {}? {}", device_id, handler == nullptr ? "no":"yes");
-    if(handler == nullptr) {
+    SPDLOG_DEBUG("Found existing ctrl channel for {}? {}", device_id, handler == NULL ? "no":"yes");
+    if(handler == NULL) {
         SPDLOG_DEBUG("No control socket connected for device {}", device_id);
         this->internal_on_ctrl_msg_sent_callback(device_id_str, msg_id_str, -9999, -9999);
         return;

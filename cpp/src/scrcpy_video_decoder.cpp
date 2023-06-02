@@ -146,32 +146,32 @@ VideoDecoder::~VideoDecoder() {
     if (this->frame) {
         SPDLOG_DEBUG("Removing frame");
         av_frame_free(&this->frame);
-        this->frame = nullptr;
+        this->frame = NULL;
     }
     if (this->codec_ctx) {
         SPDLOG_DEBUG("Removing codec_ctx");
         avcodec_free_context(&this->codec_ctx);
-        this->codec_ctx = nullptr;
+        this->codec_ctx = NULL;
     }
     if (this->codec_parser_context) {
         SPDLOG_DEBUG("Removing codec_parser_context");
         av_parser_close(this->codec_parser_context);
-        this->codec_parser_context = nullptr;
+        this->codec_parser_context = NULL;
     }
     if (this->active_packet) {
         SPDLOG_DEBUG("Removing active_packet");
         av_packet_free(&this->active_packet);
-        this->active_packet = nullptr;
+        this->active_packet = NULL;
     }
     if (this->packet_buffer) {
         SPDLOG_DEBUG("Removing packet_buffer");
         free(this->packet_buffer);
-        this->packet_buffer = nullptr;
+        this->packet_buffer = NULL;
     }
     if (this->active_data) {
         SPDLOG_DEBUG("Removing active_data");
         free(this->active_data);
-        this->active_data = nullptr;
+        this->active_data = NULL;
     }
     log_flush();
 }

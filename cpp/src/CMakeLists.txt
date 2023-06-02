@@ -2,6 +2,9 @@
 message("GO_LIB_ROOT=${GO_LIB_ROOT}")
 include_directories(${VCPKG_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR} ${GO_LIB_ROOT})
 
+set(CMAKE_CXX_FLAGS_RELEASE "/MT")
+set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
+
 set(LIB_FILES "scrcpy_support.h" "scrcpy_support.cpp"
     "socket_lib.h" "socket_lib.cpp"
     "model.h" "logging.h" "logging.cpp"
@@ -30,12 +33,6 @@ if(CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET scrcpy_recv PROPERTY CXX_STANDARD 20)
 endif()
 
-if(WIN32)
-    target_link_libraries(scrcpy_demo_app PUBLIC scrcpy_recv)
-    target_link_libraries(scrcpy_recv PUBLIC wsock32 ws2_32
-        ${FFMPEG_LD_LIBS} ${OPENCV_LIB})
-else()
-    target_link_libraries(scrcpy_demo_app PUBLIC scrcpy_recv)
-    target_link_libraries(scrcpy_recv PUBLIC ${FFMPEG_LD_LIBS} ${OPENCV_LIB})
-endif()
+target_link_libraries(scrcpy_demo_app PUBLIC scrcpy_recv)
+target_link_libraries(scrcpy_recv PUBLIC ${SCRCPY_LINK_LIBS})
 

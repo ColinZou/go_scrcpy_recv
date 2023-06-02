@@ -2,18 +2,23 @@
 #include "utils.h"
 #include <stdint.h>
 #include <stdlib.h>
-#include <windows.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string>
 #include "logging.h"
 
 int string_compartor(void* a, void* b) {
+    if (!a || !b) {
+        return 0;
+    }
     return _strcmpi((char*)a, (char*)b);
 }
 uint64_t to_long(char* from_data, int total_length, int from_index, int size) {
+    if (!from_data || size > 8 || size <= 0 || from_index < 0) {
+        return 0;
+    }
     if (from_index + size > total_length) {
-        return -1;
+        return 0;
     }
     uint64_t result = 0;
     for (int i = 0; i < size; i++) {
@@ -23,11 +28,14 @@ uint64_t to_long(char* from_data, int total_length, int from_index, int size) {
     }
     return result;
 }
-int to_int(char* from_data, int total_length, int from_index, int size) {
-    if (from_index + size > total_length) {
-        return -1;
+uint32_t to_int(char* from_data, int total_length, int from_index, int size) {
+    if (!from_data || size > 4 || size <= 0 || from_index < 0) {
+        return 0;
     }
-    int result = 0;
+    if (from_index + size > total_length) {
+        return 0;
+    }
+    uint32_t result = 0;
     for (int i = 0; i < size; i++) {
         result <<= 8;
         UINT8 value = (UINT8)from_data[from_index + i];

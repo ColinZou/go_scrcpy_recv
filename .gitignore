@@ -39,3 +39,4 @@ cpp/debug/
 *.log
 *.copy
 cpp/build/*
+**/Testing

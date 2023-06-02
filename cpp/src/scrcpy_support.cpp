@@ -28,7 +28,7 @@ SCRCPY_API void scrcpy_set_image_size(scrcpy_listener_t handle, char* device_id,
 
 SCRCPY_API scrcpy_rect scrcpy_get_cfg_image_size(scrcpy_listener_t handle, char* device_id) {
     auto size = static_cast<socket_lib*>(handle)->get_configured_img_size(device_id);
-    if (nullptr == size) {
+    if (NULL == size) {
         return scrcpy_rect{-1, -1};
     }
     return scrcpy_rect{ size->width, size->height };
@@ -36,7 +36,7 @@ SCRCPY_API scrcpy_rect scrcpy_get_cfg_image_size(scrcpy_listener_t handle, char*
 
 SCRCPY_API scrcpy_rect scrcpy_get_device_image_size(scrcpy_listener_t handle, char* device_id) {
     auto size = static_cast<socket_lib*>(handle)->get_original_screen_size(device_id);
-    if (nullptr == size) {
+    if (NULL == size) {
         return scrcpy_rect{ -1, -1 };
     }
     return scrcpy_rect{size->width, size->height};

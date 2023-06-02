@@ -17,7 +17,7 @@ int global_frame_no = 0;
 bool save_frame_images = false;
 char filename_buf[256];
 const char *device_id = "session001";
-scrcpy_listener_t listener = nullptr;
+scrcpy_listener_t listener = NULL;
 void test_internal_video_frame_callback(char *token, char* device_id, uint8_t* frame_data, uint32_t frame_data_size, scrcpy_rect img_size,
         scrcpy_rect screen_size) {
     global_frame_no++;

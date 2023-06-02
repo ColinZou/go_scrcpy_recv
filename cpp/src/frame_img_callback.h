@@ -20,9 +20,9 @@ typedef struct frame_img_callback_params {
     // device id
     std::string device_id;
     // the image data
-    uint8_t* frame_data = nullptr;
+    uint8_t* frame_data = NULL;
     // token
-    char* token = nullptr;
+    char* token = NULL;
     // the image data length
     uint32_t frame_data_size = 0;
     // the image width
@@ -42,9 +42,9 @@ typedef struct frame_img_callback_params {
 // callback setup for a device
 typedef struct device_frame_img_callback {
     // the device id
-    char * device_id = nullptr;
+    char * device_id = NULL;
     // token
-    char* token = nullptr;
+    char* token = NULL;
     // handles configured
     int handler_count = 0;
     // allocated handler array size
@@ -52,11 +52,11 @@ typedef struct device_frame_img_callback {
     // thread handle for the device
     std::thread::native_handle_type thread_handle = NULL;
     // handlers
-    frame_callback_handler* handlers = nullptr;
+    frame_callback_handler* handlers = NULL;
     // lock object
     std::mutex lock;
     // buffered frames
-    std::queue<frame_img_callback_params*> *frames = nullptr;
+    std::queue<frame_img_callback_params*> *frames = NULL;
     // allocated frames for buffering
     int allocated_frames = 0;
     // stopping flag for this device
@@ -68,7 +68,7 @@ typedef struct device_frame_img_callback {
 class frame_img_processor {
     private:
         // callback registry
-        std::map<std::string, device_frame_img_callback*> *registry = nullptr;
+        std::map<std::string, device_frame_img_callback*> *registry = NULL;
         // locker for the handler
         std::mutex lock;
 

@@ -17,8 +17,8 @@ typedef struct ClientConnection {
     struct connection_buffer_config* buffer_cfg;
     // socket handle
     SOCKET client_socket;
-    std::string *connection_type = nullptr;
-    std::string *device_id = nullptr;
+    std::string *connection_type = NULL;
+    std::string *device_id = NULL;
 } ClientConnection;
 
 // socket lib for handling server socket and clietn connection
@@ -129,11 +129,11 @@ class socket_lib : video_decode_callback {
         SOCKET listen_socket = INVALID_SOCKET;
         std::string m_token;
         int keep_accept_connection = 1;
-        std::map<std::string, image_size*> *image_size_dict = nullptr;
-        std::map<std::string, image_size*> *original_image_size_dict = nullptr;
-        std::map<std::string, std::vector<scrcpy_device_info_callback>*> *device_info_callback_dict = nullptr;
-        std::map<std::string, scrcpy_ctrl_socket_handler*> *ctrl_socket_handler_map = nullptr;
-        std::map<std::string, scrcpy_device_ctrl_msg_send_callback> *ctrl_sending_callback_map = nullptr;
+        std::map<std::string, image_size*> *image_size_dict = NULL;
+        std::map<std::string, image_size*> *original_image_size_dict = NULL;
+        std::map<std::string, std::vector<scrcpy_device_info_callback>*> *device_info_callback_dict = NULL;
+        std::map<std::string, scrcpy_ctrl_socket_handler*> *ctrl_socket_handler_map = NULL;
+        std::map<std::string, scrcpy_device_ctrl_msg_send_callback> *ctrl_sending_callback_map = NULL;
 
         std::mutex keep_accept_connection_lock;
         std::mutex image_size_lock;
@@ -142,7 +142,7 @@ class socket_lib : video_decode_callback {
         std::mutex ctrl_sending_callback_map_lock;
 
         frame_img_processor *callback_handler = new frame_img_processor();
-        scrcpy_device_disconnected_callback disconnected_callback = nullptr;
+        scrcpy_device_disconnected_callback disconnected_callback = NULL;
 
 
         // internal callback handling

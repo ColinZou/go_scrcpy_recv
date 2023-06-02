@@ -25,7 +25,7 @@ class scrcpy_ctrl_socket_handler
         int run(std::function<void(std::string, std::string, int, int)> callback);
         void send_msg(char* msg_id, uint8_t *data, int data_len);
     private:
-        std::string *device_id = nullptr;
+        std::string *device_id = NULL;
         SOCKET client_socket = INVALID_SOCKET;
         std::mutex stat_lock;
         std::mutex outgoing_queue_lock;

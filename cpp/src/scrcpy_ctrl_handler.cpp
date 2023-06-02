@@ -26,7 +26,7 @@ scrcpy_ctrl_socket_handler::~scrcpy_ctrl_socket_handler() {
             delete item;
         }
         delete this->outgoing_queue;
-        this->outgoing_queue = nullptr;
+        this->outgoing_queue = NULL;
     }
     if (this->outgoing_trash) {
         std::lock_guard<std::mutex> lock(this->outgoing_queue_lock);
@@ -40,11 +40,11 @@ scrcpy_ctrl_socket_handler::~scrcpy_ctrl_socket_handler() {
             delete item;
         }
         delete this->outgoing_trash;
-        this->outgoing_trash = nullptr;
+        this->outgoing_trash = NULL;
     }
     if(this->device_id) {
         delete this->device_id;
-        this->device_id = nullptr;
+        this->device_id = NULL;
     }
 }
 void scrcpy_ctrl_socket_handler::stop() {

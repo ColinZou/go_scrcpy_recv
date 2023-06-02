@@ -29,16 +29,23 @@ add_definitions(-DWIN_DLL=1)
 project("scrcpy_recv" LANGUAGES CXX C)
 
 # static build
-set(CMAKE_CXX_FLAGS_RELEASE "/MT")
-set(CMAKE_CXX_FLAGS_DEBUG "/MTd")
 
 set(VCPKG_INCLUDE ${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/include)
 set(VCPKG_LD_DIR ${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib)
 
 link_directories(${VCPKG_LD_DIR})
 
-set(OPENCV_LIB bcrypt fmt spdlog lzma tiff libpng16 turbojpeg jpeg opencv_core4 opencv_imgcodecs4 opencv_imgproc4)
-set(FFMPEG_LD_LIBS mfuuid strmbase zlib libwebp libsharpyuv avcodec avutil libx264 swscale swresample)
+set(OPENCV_LIB bcrypt fmt spdlog lzma tiff libpng16 turbojpeg jpeg
+    opencv_core4 opencv_imgcodecs4 opencv_imgproc4)
+
+set(FFMPEG_LD_LIBS mfuuid strmbase zlib libwebp
+    libsharpyuv avcodec avutil libx264 swscale swresample)
+
+if(WIN32)
+    set(SCRCPY_LINK_LIBS wsock32 ws2_32 ${OPENCV_LIB} ${FFMPEG_LD_LIBS})
+else()
+    set(SCRCPY_LINK_LIBS ${OPENCV_LIB} ${FFMPEG_LD_LIBS})
+endif()
 
 # Enable Hot Reload for MSVC compilers if supported.
 if(POLICY CMP0141)
@@ -46,8 +53,8 @@ if(POLICY CMP0141)
 endif()
 
 add_subdirectory(src)
-add_subdirectory(tests)
 
 enable_testing()
+add_subdirectory(tests)
 
 

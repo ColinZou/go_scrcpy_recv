@@ -73,18 +73,18 @@ void frame_img_processor::release_device_img_callback(device_frame_img_callback*
     SPDLOG_INFO("Relasing a device_frame_img_callback {} for device {}", (uintptr_t)callback_item, callback_item->device_id);
     if (callback_item->device_id) {
         free(callback_item->device_id);
-        callback_item->device_id = nullptr;
+        callback_item->device_id = NULL;
     }
     if (callback_item->handlers) {
         free(callback_item->handlers);
-        callback_item->handlers = nullptr;
+        callback_item->handlers = NULL;
     }
     if  (callback_item->token) {
         free(callback_item->token);
-        callback_item->token = nullptr;
+        callback_item->token = NULL;
     }
     if (callback_item->thread_handle){
-        callback_item->thread_handle = nullptr;
+        callback_item->thread_handle = NULL;
     }
     if(callback_item->frames) {
         auto *frames = callback_item->frames;
@@ -98,7 +98,7 @@ void frame_img_processor::release_device_img_callback(device_frame_img_callback*
             }
         }
         delete callback_item->frames;
-        callback_item->frames = nullptr;
+        callback_item->frames = NULL;
     }
     delete callback_item;
 }
@@ -246,7 +246,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
     int buffed_frames = handler_container->allocated_frames;
     SPDLOG_TRACE("Trying to add param for device {}, lock acquired, already had {} allocted frames. data size is {}", 
             device_id, buffed_frames, frame_data_size);
-    frame_img_callback_params* params = nullptr;
+    frame_img_callback_params* params = NULL;
     if (buffed_frames >= MAX_PENDING_FRAMES ) {
         auto frames = handler_container->frames;
         // get a frame from back 
@@ -264,7 +264,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
             }
         }
     }
-    if(nullptr == params) {
+    if(NULL == params) {
         params = new frame_img_callback_params();
         if (!params) {
             SPDLOG_ERROR("No enough memory for initing CallbackParams");
@@ -282,7 +282,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
         }
         handler_container->allocated_frames++;
     }
-    if (params == nullptr) {
+    if (params == NULL) {
         SPDLOG_ERROR("FATAL: Could not allocate a param for sending callback");
         return;
     }

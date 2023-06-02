@@ -8,6 +8,9 @@
 #include <shared_mutex>
 
 #define LOG_LINE_MAX_WIDTH 2048
+#ifndef LOG_FILENAME
+#define LOG_FILENAME "scrcpy_debug.log"
+#endif //!LOG_FILENAME
 
 class logger_config {
     private:
@@ -50,7 +53,7 @@ class logger_config {
                 spdlog::set_level(target_level);
                 spdlog::flush_every(std::chrono::milliseconds(200));
                 try {
-                    this->logger = spdlog::basic_logger_mt("default", "scrcpy_debug.log");
+                    this->logger = spdlog::basic_logger_mt("default", LOG_FILENAME);
                     spdlog::set_default_logger(this->logger);
                     this->logger->flush_on(spdlog::level::debug);
                     this->logger->flush_on(spdlog::level::info);
@@ -93,7 +96,7 @@ class logger_config {
 logger_config *cfg = new logger_config();
 void logging_cleanup() {
     delete cfg;
-    cfg = nullptr;
+    cfg = NULL;
 }
 void log_flush() {
     if (!cfg) {
