@@ -115,6 +115,10 @@ int frame_img_processor::start_callback_thread(char* device_id, device_frame_img
 }
 
 void frame_img_processor::add(char *device_id, frame_callback_handler callback, char *token) {
+    if (!device_id || !token || !callback) {
+        SPDLOG_ERROR("Invalid arguments for add a callback");
+        return;
+    }
     // lock global
     std::lock_guard<std::mutex> guard{ this->lock };
     auto entry = this->registry->find(std::string(device_id));
@@ -186,6 +190,10 @@ void frame_img_processor::add(char *device_id, frame_callback_handler callback, 
     }
 }
 void frame_img_processor::del(char* device_id, frame_callback_handler callback) {
+    if(!device_id || !callback) {
+        SPDLOG_ERROR("Invalid arguments for add a callback");
+        return;
+    }
     // global lock
     std::lock_guard<std::mutex> guard{ this->lock };
     auto entry = this->registry->find(std::string(device_id));
@@ -233,6 +241,10 @@ frame_img_processor::~frame_img_processor() {
     this->registry->clear();
 }
 void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_data, uint32_t frame_data_size, int w, int h, int raw_w, int raw_h) {
+    if(!device_id || !token || !frame_data) {
+        SPDLOG_ERROR("Invalid arguments for add a frame image data");
+        return;
+    }
     auto entry = this->registry->find(std::string(device_id));
     if (entry == this->registry->end()) {
         return;
@@ -339,6 +351,10 @@ void frame_img_processor::clean_device_img_callback_state(std::string key, bool 
     }
 }
 void frame_img_processor::del_all(char* device_id) {
+    if (!device_id) {
+        SPDLOG_ERROR("Invalid argument for del_all callbacks");
+        return;
+    }
     SPDLOG_INFO("{} Trying to remove all frame image callbacks for {}", (uintptr_t) this, device_id);
     clean_device_img_callback_state(std::string(device_id), true);
 }
