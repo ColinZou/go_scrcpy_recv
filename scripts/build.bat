@@ -3,7 +3,7 @@ REM SETUP GLOBAL VARS
 set SCRIPT_DIR=%~dp0
 set GO_SRC_FOLDER=%SCRIPT_DIR%..
 set SRCDIR=%GO_SRC_FOLDER%
-set SCRCPY_DEBUG_ENABLEDA=
+set SCRCPY_DEBUG_ENABLED=
 set CPP_SRC_FOLDER=%SCRIPT_DIR%..\cpp
 set LIB_BIN_VS_ROOT_FOLDER=%SCRIPT_DIR%..\lib\scrcpy_recv
 set LIB_BIN_TARGET_FOLDER=%SCRIPT_DIR%..\lib\scrcpy_recv_bin
@@ -41,7 +41,9 @@ call "%vc_dir%\Common7\Tools\vsdevcmd.bat" -arch=x86 -host_arch=x64
 REM build dll
 set BUILD_FOLDER=build
 set BUILD_CFG=Release
-set ALL_TESTS=test_utils test_frame_img_callback
+set ALL_TESTS=test_utils test_frame_img_callback test_scrcpy_ctrl_handler
+set ALL_TESTS_CPY=%ALL_TESTS%
+FOR %%i in (%ALL_TESTS_CPY%) DO IF /I "%%i" == "%2" SET ALL_TESTS=%%i
 
 echo Building cpp &&^
 cd %CPP_SRC_FOLDER% &&^
@@ -50,7 +52,10 @@ IF NOT EXIST "%BUILD_FOLDER%" (mkdir "%BUILD_FOLDER%" ) else (echo relase folder
 echo clean built binary first && del /S /F /Q %LIB_BIN_TARGET_FOLDER% &&^
 cd %BUILD_FOLDER% && cmake -DCMAKE_BUILD_TYPE=%BUILD_CFG% .. &&^
 IF /i "%1" == "runtest" (
-    set SCRCPY_DEBUG=1 && echo Run tests && cmake --build . --target %ALL_TESTS% --config %BUILD_CFG% && ctest -C %BUILD_CFG% --output-on-failure 
+echo "Will run test(s) : %ALL_TESTS%" &&^
+set SCRCPY_DEBUG_ENABLED=1 &&^
+echo Run tests && cmake --build . --target %ALL_TESTS% --config %BUILD_CFG% &&^
+ctest -C %BUILD_CFG% -VV --output-on-failure 
 ) ELSE (
 echo Run relase build &&^
 cmake --build . --target scrcpy_recv scrcpy_demo_app --config %BUILD_CFG% &&^

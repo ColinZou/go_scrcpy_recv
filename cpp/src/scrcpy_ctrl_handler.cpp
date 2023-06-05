@@ -146,6 +146,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
         }
     }
     SPDLOG_INFO("Ctrl message sender loop end for {}", this->device_id->c_str());
+    log_flush();
     delete this;
     return result;
 }

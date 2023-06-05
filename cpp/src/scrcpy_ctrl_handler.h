@@ -20,6 +20,10 @@ typedef struct scrcpy_ctrl_msg_trashed {
     int counter = 0;
 } scrcpy_ctrl_msg_trashed;
 
+/**
+ * scrcpy_ctrl_socket_handler
+ * let it clean itself after call stop if you want a clear shutdown
+ */
 class scrcpy_ctrl_socket_handler 
 {
     public:
