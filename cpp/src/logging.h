@@ -1,0 +1,11 @@
+#ifndef SCRCPY_LOGGING
+#define SCRCPY_LOGGING
+#ifdef __cplusplus
+#ifndef SCRCPY_LOGGING_METHOD
+#define SCRCPY_LOGGING_METHOD
+#include "spdlog/spdlog.h"
+void log_flush();
+void logging_cleanup();
+#endif //!SCRCPY_LOGGING_METHOD
+#endif //!__cplusplus
+#endif //!SCRCPY_LOGGING
