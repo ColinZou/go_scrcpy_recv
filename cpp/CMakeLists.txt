@@ -47,11 +47,6 @@ else()
     set(SCRCPY_LINK_LIBS ${OPENCV_LIB} ${FFMPEG_LD_LIBS})
 endif()
 
-# Enable Hot Reload for MSVC compilers if supported.
-if(POLICY CMP0141)
-  cmake_policy(set CMP0141 NEW)
-endif()
-
 add_subdirectory(src)
 
 enable_testing()

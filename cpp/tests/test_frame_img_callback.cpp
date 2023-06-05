@@ -8,6 +8,7 @@ std::string test_token = "123";
 std::string test_device_id = "456";
 uint8_t data[] = {1,2,3};
 uint32_t data_len = 3;
+uint32_t got_msg_count = 0;
 scrcpy_rect current_img_size = scrcpy_rect {
     100,
     100
@@ -22,6 +23,7 @@ std::queue<bool> passed_flags;
 
 void frame_img_callback_handler(char *token, char *device_id, uint8_t *img_data, uint32_t img_data_len, scrcpy_rect img_size, scrcpy_rect orig_size) {
     std::lock_guard<std::mutex> lock(global_lock);
+    got_msg_count ++;
     SPDLOG_INFO("Got a frame image callback, token={}, device_id={}, img_data_len={}, img_size.width={}, img_size.height={}" 
             " orig_size.width={}, orig_size.height={}", 
             token ,device_id,
@@ -111,6 +113,17 @@ void test_callback(frame_img_processor *processor) {
     SPDLOG_DEBUG("Trying to unregister all callback this time");
     log_flush();
     processor->del_all((char *)device_id.c_str());
+
+    SPDLOG_DEBUG("Trying to send a new message again");
+    log_flush();
+    auto received_msg_count = got_msg_count;
+    //send the message again and should not receive any message
+    processor->invoke((char *)token.c_str(), (char *)device_id.c_str(), data, data_len, 100, 100, 200, 200);
+    Sleep(200);
+    std::lock_guard<std::mutex> lock(global_lock);
+    SPDLOG_DEBUG("Checking if no new message received(should not receive any new message).");
+    log_flush();
+    assert(got_msg_count == received_msg_count);
 }
 int main() {
     SPDLOG_INFO("test_utils");
