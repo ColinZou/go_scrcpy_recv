@@ -3,6 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.8)
 
+
 if(DEFINED ENV{VCPKG_ROOT})
     set(VCPKG_ROOT $ENV{VCPKG_ROOT})
 else()
@@ -24,7 +25,7 @@ if(DEFINED ENV{SCRCPY_DEBUG_ENABLED})
 endif()
 
 
-add_definitions(-DWIN_DLL=1)
+add_definitions(-DWIN_DLL=1 -D_WIN32_WINNT=0x0601)
 
 project("scrcpy_recv" LANGUAGES CXX C)
 

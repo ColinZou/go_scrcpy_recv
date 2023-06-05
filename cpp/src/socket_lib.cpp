@@ -3,9 +3,6 @@
 #include "scrcpy_video_decoder.h"
 #include <stdlib.h>
 #include <thread>
-#include <WinSock2.h>
-#include <WS2tcpip.h>
-#include <Windows.h>
 #include <mutex>
 #include <map>
 #include "model.h"
@@ -13,6 +10,9 @@
 #include "frame_img_callback.h"
 #include "scrcpy_ctrl_handler.h"
 #include "logging.h"
+#include "boost/asio.hpp"
+
+using boost::asio::ip::tcp;
 
 #ifndef SCRCPY_CTRL_SOCKET_NAME
 #define SCRCPY_CTRL_SOCKET_NAME "ctrl"
@@ -79,9 +79,14 @@ std::string* socket_lib::read_socket_type(ClientConnection* connection) {
     char data[SCRCPY_SOCKET_HEADER_SIZE];
     char *device_id = (char*) malloc(SCRCPY_HEADER_DEVICE_ID_LEN * sizeof(char));
     char *socket_type = (char*) malloc(SCRCPY_HEADER_TYPE_LEN * sizeof(char));
-    int received = recv(connection->client_socket, data, buf_size, 0);
-    SPDLOG_DEBUG("received {}/{} bytes header", received, SCRCPY_SOCKET_HEADER_SIZE);
-    if (received != buf_size) {
+    try {
+        int received = connection->client_socket->receive(boost::asio::buffer(data, buf_size));
+        SPDLOG_DEBUG("received {}/{} bytes header", received, SCRCPY_SOCKET_HEADER_SIZE);
+        if (received != buf_size) {
+            return NULL;
+        }
+    }catch(boost::system::system_error &e) {
+        SPDLOG_ERROR("Could not recev data from client: {}", e.what());
         return NULL;
     }
 
@@ -98,21 +103,22 @@ std::string* socket_lib::read_socket_type(ClientConnection* connection) {
 bool socket_lib::is_controll_socket(ClientConnection* connection) {
     auto type = this->read_socket_type(connection);
     bool result = strcmp(type->c_str(), SCRCPY_CTRL_SOCKET_NAME) == 0;
-    SPDLOG_DEBUG("Is received socket type {} == {} for socket {} ? {}", type->c_str(), SCRCPY_CTRL_SOCKET_NAME, connection->client_socket, result ? "true":"false");
+    SPDLOG_DEBUG("Is received socket type {} == {} for socket {} ? {}", type->c_str(), SCRCPY_CTRL_SOCKET_NAME, 
+            connection->client_socket->remote_endpoint().address().to_string(), result ? "true":"false");
     return result;
 }
 
 int socket_lib::handle_connetion(ClientConnection* connection) {
-    SOCKET client_socket = connection->client_socket;
+    auto client_socket = connection->client_socket;
     int result = 0;
     bool is_ctrl_socket = this->is_controll_socket(connection);
     //check if it is a controll socket
     if (!is_ctrl_socket) {
-        SPDLOG_INFO("{} is a video socket for device {} ", connection->client_socket, connection->device_id->c_str());
+        SPDLOG_INFO("{} is a video socket for device {} ", con_addr(connection->client_socket), connection->device_id->c_str());
         result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
         SPDLOG_INFO("Decoder just ended for device {}", connection->device_id->c_str());
     } else {
-        SPDLOG_INFO("{} is a ctrl socket for device {} ", connection->client_socket, connection->device_id->c_str());
+        SPDLOG_INFO("{} is a ctrl socket for device {} ", con_addr(connection->client_socket), connection->device_id->c_str());
         auto handler = new scrcpy_ctrl_socket_handler(connection->device_id, connection->client_socket);
         {
             std::unique_lock lock(this->ctrl_socket_handler_map_lock);
@@ -130,13 +136,9 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
 end:
     auto connection_type = is_ctrl_socket ? "ctrl" : "video";
     SPDLOG_INFO("Doing connection cleanup for device {} connection type {}", connection->device_id->c_str(), connection_type);
-    if (client_socket != INVALID_SOCKET) {
-        SPDLOG_DEBUG("Shutdown {}", client_socket);
-        result = shutdown(client_socket, SD_SEND);
-        if (result == SOCKET_ERROR) {
-            SPDLOG_DEBUG("Failed to close client connection: {}", WSAGetLastError());
-        }
-        client_socket = INVALID_SOCKET;
+    if (client_socket != NULL && client_socket->is_open()) {
+        SPDLOG_DEBUG("Shutdown {}", con_addr(client_socket));
+        client_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_send);
     }
     // invoke shutdown callback
     if(this->disconnected_callback && !is_ctrl_socket) {
@@ -183,24 +185,18 @@ end:
 int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
     int result = 0;
     do {
-        SPDLOG_DEBUG("Trying to accepting a new connection for listener {}", listen_socket);
+        SPDLOG_DEBUG("Trying to accepting a new connection for listener {}", listen_socket->local_endpoint().address().to_string());
+        ClientConnection* connection = new ClientConnection();
+        tcp::socket *client_socket = new tcp::socket(*this->io_context);
         // accept a connection
-        SOCKET client_socket = accept(listen_socket, NULL, NULL);
-        SPDLOG_DEBUG("Got new client connection {}", client_socket);
-        if (client_socket == INVALID_SOCKET) {
-            result = 1;
-            SPDLOG_ERROR("Failed to accept a client connection: {}", WSAGetLastError());
-            continue;
-        }
-        SPDLOG_DEBUG("New connection accpeted:{}", client_socket);
-        ClientConnection* connection = NULL;
-        connection = new ClientConnection();
+        connection->client_socket = boost::shared_ptr<tcp::socket>(client_socket);
+        this->listen_socket->accept(*client_socket);
+        SPDLOG_DEBUG("New connection accpeted: {}", con_addr(connection->client_socket));
         if (!connection) {
-            SPDLOG_ERROR("No enough memory to handling incoming connection {}", client_socket);
-            shutdown(client_socket, SD_SEND);
+            SPDLOG_ERROR("No enough memory to handling incoming connection {}", con_addr(connection->client_socket));
+            client_socket->close();
             continue;
         }
-        connection->client_socket = client_socket;
         connection->buffer_cfg = cfg;
         std::thread connection_thread(&socket_lib::handle_connetion, this, connection);
         connection_thread.detach();
@@ -212,72 +208,30 @@ int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
     return result;
 }
 int socket_lib::startup(char* address, int network_buffer_size_kb, int video_packet_buffer_size_kb) {
-    WSADATA wsaData;
-    int result;
-    struct addrinfo* addr_result = NULL;
-    struct addrinfo addr_hints;
+    int port_no = std::atoi(address);
     struct connection_buffer_config cfg = connection_buffer_config{
         network_buffer_size_kb,
             video_packet_buffer_size_kb
     };
-    SPDLOG_DEBUG("WSAStartup");
-    result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-    if (result != 0) {
-        SPDLOG_ERROR("Failed to init winsock: {}", result);
-        return 1;
+    boost::shared_ptr<tcp::acceptor> acceptor_ptr = NULL;
+    try {
+        this->io_context = boost::shared_ptr<boost::asio::io_context>(new boost::asio::io_context());
+        this->listen_socket = boost::shared_ptr<tcp::acceptor>(new tcp::acceptor(*io_context, tcp::endpoint(tcp::v4(), port_no)));
+
+        std::thread server_thread(&socket_lib::accept_new_connection, this, &cfg);
+        SPDLOG_INFO("Started new thread accepting new connection for listener at port {}", port_no);
+        server_thread.join();
+        SPDLOG_INFO("Server thread stopped");
+        this->listen_socket->close();
+        this->listen_socket = NULL;
+    } catch(std::exception &ex) {
+        SPDLOG_ERROR("Unexpected error: {}", ex.what());
     }
-    ZeroMemory(&addr_hints, sizeof(addr_hints));
-    addr_hints.ai_family = AF_INET;
-    addr_hints.ai_socktype = SOCK_STREAM;
-    addr_hints.ai_protocol = IPPROTO_TCP;
-    addr_hints.ai_flags = AI_PASSIVE;
-    SPDLOG_DEBUG("getaddrinfo");
-    result = getaddrinfo(NULL, address, &addr_hints, &addr_result);
-    if (result != 0) {
-        SPDLOG_ERROR("Failed to call getaddrinfo for address: {} err_no={}", address, result);
-        WSACleanup();
-        return 1;
+    if (NULL != this->listen_socket) {
+        this->listen_socket->close();
+        this->listen_socket = NULL;
     }
-    SPDLOG_DEBUG("create socket");
-    listen_socket = socket(addr_result->ai_family, addr_result->ai_socktype, addr_result->ai_protocol);
-    if (listen_socket == INVALID_SOCKET) {
-        SPDLOG_ERROR("Failed to create socket with error: {}", WSAGetLastError());
-        freeaddrinfo(addr_result);
-        WSACleanup();
-        return 1;
-    }
-    SPDLOG_DEBUG("bind socket");
-    result = bind(listen_socket, addr_result->ai_addr, (int)addr_result->ai_addrlen);
-    if (result == SOCKET_ERROR) {
-        SPDLOG_ERROR("Failed to bind with error: {}", WSAGetLastError());
-        freeaddrinfo(addr_result);
-        closesocket(listen_socket);
-        WSACleanup();
-        return 1;
-    }
-    freeaddrinfo(addr_result);
-    SPDLOG_DEBUG("listening socket");
-    result = listen(listen_socket, SOMAXCONN);
-    if (result == SOCKET_ERROR) {
-        SPDLOG_ERROR("Failed to start listening: {}", WSAGetLastError());
-        if (listen_socket != INVALID_SOCKET) {
-            closesocket(listen_socket);
-        }
-        WSACleanup();
-        return result;
-    }
-    SPDLOG_DEBUG("running a server thread");
-    std::thread server_thread(&socket_lib::accept_new_connection, this, &cfg);
-    SPDLOG_INFO("Started new thread accepting new connection for listener {}", (uintptr_t)listen_socket);
-    server_thread.join();
-    // close the listen socket
-    closesocket(listen_socket);
-    listen_socket = INVALID_SOCKET;
-    if (listen_socket != INVALID_SOCKET) {
-        closesocket(listen_socket);
-    }
-    WSACleanup();
-    return result;
+    return 0;
 }
 image_size* socket_lib::get_original_screen_size(char* device_id) {
     return this->internal_get_image_size(this->original_image_size_dict, device_id);

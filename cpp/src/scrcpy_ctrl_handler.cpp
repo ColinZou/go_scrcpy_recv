@@ -1,13 +1,11 @@
 #include "scrcpy_ctrl_handler.h"
 #include <stdint.h>
-#include <Windows.h>
-#include <WinSock2.h>
 #include <functional>
 #include <winbase.h>
 #include "utils.h"
 #include "logging.h"
 
-scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, SOCKET socket): device_id(dev_id), 
+scrcpy_ctrl_socket_handler::scrcpy_ctrl_socket_handler(std::string *dev_id, boost::shared_ptr<tcp::socket> socket): device_id(dev_id), 
     client_socket(socket), 
     outgoing_queue(new std::queue<scrcpy_ctrl_msg*>()),
     outgoing_trash(new std::queue<scrcpy_ctrl_msg_trashed*>()){
@@ -125,10 +123,14 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
                 // remove it
                 q->pop();
                 //send it
-                int status = send(this->client_socket, msg->data, msg->length, 0);
-                if (status == SOCKET_ERROR) {
-                    SPDLOG_DEBUG("Failed to send msg_id={} {} bytes of ctrl msg to device {}", msg->msg_id, msg->length, this->device_id->c_str());
-                } else if(status == msg->length) {
+                int status = 0;
+                try {
+                    status = this->client_socket->send(boost::asio::buffer(msg->data, msg->length));
+                } catch(boost::system::system_error& e) {
+                    SPDLOG_ERROR("Failed to send msg id {}: {}", msg->msg_id, e.what());
+                    status = -1;
+                }
+                if(status == msg->length) {
                     // do noting
                 } else {
                     SPDLOG_DEBUG("Unexpected status {} when trying to send msg_id={} with {} bytes data to device {}", status, msg->msg_id, msg->length, this->device_id->c_str());

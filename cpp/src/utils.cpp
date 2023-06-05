@@ -79,4 +79,9 @@ void print_bytes(char *header, char *data, int length) {
     }
     free(buffer);
 }
+std::string con_addr(boost::shared_ptr<tcp::socket> conn) {
+    auto remote = conn->remote_endpoint();
+    std::string addr = fmt::format("{}:{}", remote.address().to_string(), remote.port());
+    return addr;
+}
 

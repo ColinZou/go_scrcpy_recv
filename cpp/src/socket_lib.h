@@ -1,22 +1,23 @@
 #ifndef SCRCPY_SOCKET_LIB
 #define SCRCPY_SOCKET_LIB
 
-#include <WinSock2.h>
 #include <map>
 #include <mutex>
 #include <shared_mutex>
-#include "model.h"
 #include <vector>
+#include "boost/asio/ip/tcp.hpp"
+#include "model.h"
 #include "frame_img_callback.h"
 #include "scrcpy_ctrl_handler.h"
+using boost::asio::ip::tcp;
 /*
  * Client connection for the video socket
  */
 typedef struct ClientConnection {
     // connection buffer config
-    struct connection_buffer_config* buffer_cfg;
+    struct connection_buffer_config* buffer_cfg = NULL;
     // socket handle
-    SOCKET client_socket;
+    boost::shared_ptr<tcp::socket> client_socket = NULL;
     std::string *connection_type = NULL;
     std::string *device_id = NULL;
 } ClientConnection;
@@ -126,7 +127,8 @@ class socket_lib : video_decode_callback {
         void set_device_disconnected_callback(scrcpy_device_disconnected_callback callback);
 
     private:
-        SOCKET listen_socket = INVALID_SOCKET;
+        boost::shared_ptr<tcp::acceptor> listen_socket = NULL;
+        boost::shared_ptr<boost::asio::io_context> io_context = NULL;
         std::string m_token;
         int keep_accept_connection = 1;
         std::map<std::string, image_size*> *image_size_dict = NULL;

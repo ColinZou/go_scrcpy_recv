@@ -5,7 +5,6 @@
 #include <mutex>
 #include <queue>
 #include <thread>
-#include <Windows.h>
 
 #define PRE_ALLOC_CALLBASCK_SIZE 4
 #define MAX_PENDING_FRAMES 4

@@ -6,12 +6,13 @@
 #include <deque>
 #include <stdint.h>
 #include <vector>
-#include <Windows.h>
 #include <stdlib.h>
 #include <string>
 #include <cstring>
 #include <algorithm>
 #include <stdio.h>
+#include <chrono>
+#include <thread>
 
 int global_frame_no = 0;
 bool save_frame_images = false;
@@ -56,10 +57,8 @@ std::vector<uint8_t> int_to_bytes(int paramInt)
     return arrayOfByte;
 }
 void device_info_callback(char *token, char* device_id, int w, int h) {
-    printf("device_info_callback device_id=%s screen_width=%d screen_height=%d\n", device_id, w, h);
-    Sleep(1000);
     printf("About to send a key event\n");
-    // try sending a ctrl msg
+    std::this_thread::sleep_for(std::chrono::seconds(1));    // try sending a ctrl msg
     unsigned char ctrl_msg[] = {
         0x00, //key up
         0x00, 0x00, 0x00, 0x03, //key home

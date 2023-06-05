@@ -29,7 +29,7 @@ You need to download from [here](https://cmake.org). Making sure cmake.exe is in
 3. install dependencies with vcpkg
 
 ```bash
-vcpkg install --recurse --triplet x64-windows-static ffmpeg[avcodec] ffmpeg[x264] ffmpeg[swscale] ffmpeg[avresample] opencv4[png]
+vcpkg install --recurse --triplet x64-windows-static ffmpeg[avcodec] ffmpeg[x264] ffmpeg[swscale] ffmpeg[avresample] opencv4[png] boost-asio
 ```
 
 DO NOT FORGET TO SET VCPKG_ROOT to vcpkg folder.

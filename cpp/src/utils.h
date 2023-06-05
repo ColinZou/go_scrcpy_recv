@@ -2,6 +2,8 @@
 #define SCRCPY_UTILS
 #include <stdint.h>
 #include <string>
+#include "boost/asio/ip/tcp.hpp"
+using boost::asio::ip::tcp;
 
 /*
 * A simple string compare method for sorting
@@ -43,5 +45,7 @@ void array_copy_to(char* src, char* dest, const int dest_start_index, const int 
 */
 void array_copy_to2(char *src, char *dest, int src_start_index, int dest_start_index, int copy_length);
 void print_bytes(char *header, char *data, int length);
+
+std::string con_addr(boost::shared_ptr<tcp::socket> conn);
 
 #endif // !SCRCPY_UTILS
