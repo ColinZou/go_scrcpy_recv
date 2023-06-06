@@ -279,9 +279,9 @@ func (r *receiver) RemoveAllDeviceInfoCallbacks(deviceId string) {
 func (r *receiver) GetToken() string {
 	return r.token
 }
-func (r *receiver) release() {
+func (r *receiver) release(timeout int) {
 	// wait for threads to shutdown
-	time.Sleep(2 * time.Second)
+	time.Sleep(timeout * time.Second)
 	C.scrcpy_free_receiver(r.r)
 }
 func (r *receiver) invokeFrameImageCallbacks(deviceId string, imgData *[]byte, imgSize *ImageSize, screenSize *ImageSize) {
@@ -426,8 +426,8 @@ func New(token string) Receiver {
 		disconnectedCallbacks:  make(map[string][]DeviceDisconnectedCallback),
 	}
 }
-func Release(handle Receiver) {
-	handle.(*receiver).release()
+func Release(handle Receiver, timeout int) {
+	handle.(*receiver).release(timeout)
 }
 
 //export goScrcpyFrameImageCallback
