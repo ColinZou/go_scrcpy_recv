@@ -56,7 +56,7 @@ void scrcpy_ctrl_socket_handler::send_msg(char *msg_id, uint8_t *data, int data_
     log_flush();
 
     // create a copy
-    auto msg_id_len = strlen(msg_id) + 1;
+    auto msg_id_len = (int)strlen(msg_id) + 1;
     char* msg_id_copy = (char*)malloc(sizeof(char) * msg_id_len);
     char* data_copy = (char*)malloc(sizeof(char) * data_len);
     array_copy_to(msg_id, msg_id_copy, 0, msg_id_len);
@@ -73,7 +73,7 @@ void scrcpy_ctrl_socket_handler::send_msg(char *msg_id, uint8_t *data, int data_
 }
 void scrcpy_ctrl_socket_handler::cleanup_trash() {
     int cleaned_size = 0;
-    int total = this->outgoing_trash->size();
+    int total = (int)this->outgoing_trash->size();
     while(!this->outgoing_trash->empty() && total > 0) {
         auto item = this->outgoing_trash->front();
         this->outgoing_trash->pop();
@@ -125,7 +125,7 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
                 //send it
                 int status = 0;
                 try {
-                    status = this->client_socket->send(boost::asio::buffer(msg->data, msg->length));
+                    status = (int)this->client_socket->send(boost::asio::buffer(msg->data, msg->length));
                 } catch(boost::system::system_error& e) {
                     SPDLOG_ERROR("Failed to send msg id {}: {}", msg->msg_id, e.what());
                     status = -1;

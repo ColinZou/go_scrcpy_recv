@@ -232,7 +232,7 @@ int VideoDecoder::read_video_header(struct VideoHeader* header) {
     SPDLOG_TRACE("Trying to read video header({} bytes) from {} into {} ", H264_HEAD_BUFFER_SIZE, con_addr(this->socket), (uintptr_t)header_buffer);
     int bytes_received = 0;
     try {
-        bytes_received = this->socket->receive(boost::asio::buffer(header_buffer, H264_HEAD_BUFFER_SIZE));
+        bytes_received = (int)this->socket->receive(boost::asio::buffer(header_buffer, H264_HEAD_BUFFER_SIZE));
         if (bytes_received != H264_HEAD_BUFFER_SIZE) {
             SPDLOG_ERROR("Error, Read {}/{} for video header", bytes_received, H264_HEAD_BUFFER_SIZE);
             return 1;
@@ -255,7 +255,7 @@ int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
         int chunk_read_plan = min(max_chunk, length - read_total);
         int read_length = 0;
         try {
-            read_length = this->socket->receive(boost::asio::buffer(chunk, chunk_read_plan));
+            read_length = (int)this->socket->receive(boost::asio::buffer(chunk, chunk_read_plan));
         } catch(boost::system::system_error& e) {
             SPDLOG_ERROR("Failed to recv_network_buffer {}", e.what());
         }
@@ -386,10 +386,10 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
     SPDLOG_TRACE("Encoding image to png format");
     if (cv::imencode(".png", image, *this->img_buffer)) {
         image.release();
-        int img_size = this->img_buffer->size();
+        int img_size = (int)this->img_buffer->size();
         SPDLOG_TRACE("sending {} bytes to callback", img_size);
         uint8_t* img_data = (uint8_t*)this->img_buffer->data();
-        this->callback->on_video_callback(device_id, img_data, this->img_buffer->size(), target_width, target_height, width, height);
+        this->callback->on_video_callback(device_id, img_data, (int)this->img_buffer->size(), target_width, target_height, width, height);
     } else {
         SPDLOG_ERROR("Failed to encode a png file");
     }
@@ -504,9 +504,12 @@ int socket_decode(boost::shared_ptr<tcp::socket> socket, video_decode_callback *
             image_buffer);
     int result = decoder->decode();
     SPDLOG_INFO("Video decoder is shutting down");
+    log_flush();
     delete image_buffer;
     SPDLOG_INFO("Video decoder img_buffer cleared");
+    log_flush();
     delete decoder;
     SPDLOG_INFO("Video decoder deleted");
+    log_flush();
     return result;
 }

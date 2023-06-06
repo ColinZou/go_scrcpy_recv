@@ -41,7 +41,7 @@ call "%vc_dir%\Common7\Tools\vsdevcmd.bat" -arch=x86 -host_arch=x64
 REM build dll
 set BUILD_FOLDER=build
 set BUILD_CFG=Release
-set ALL_TESTS=test_utils test_frame_img_callback test_scrcpy_ctrl_handler
+set ALL_TESTS=test_utils test_frame_img_callback test_scrcpy_ctrl_handler test_scrcpy_support
 set ALL_TESTS_CPY=%ALL_TESTS%
 FOR %%i in (%ALL_TESTS_CPY%) DO IF /I "%%i" == "%2" SET ALL_TESTS=%%i
 

@@ -10,6 +10,14 @@
 #include "frame_img_callback.h"
 #include "scrcpy_ctrl_handler.h"
 using boost::asio::ip::tcp;
+
+#ifndef SCRCPY_CTRL_SOCKET_NAME
+#define SCRCPY_CTRL_SOCKET_NAME "ctrl"
+#define SCRCPY_SOCKET_HEADER_SIZE 80 // 64 bytes name, 16 bytes type
+#define SCRCPY_HEADER_DEVICE_ID_LEN 64                                
+#define SCRCPY_HEADER_TYPE_LEN 16
+#endif //!SCRCPY_CTRL_SOCKET_NAME
+
 /*
  * Client connection for the video socket
  */
@@ -126,11 +134,14 @@ class socket_lib : video_decode_callback {
          */
         void set_device_disconnected_callback(scrcpy_device_disconnected_callback callback);
 
+        void try_release();
+
     private:
         boost::shared_ptr<tcp::acceptor> listen_socket = NULL;
         boost::shared_ptr<boost::asio::io_context> io_context = NULL;
         std::string m_token;
         int keep_accept_connection = 1;
+        bool shutting_down = 0;
         std::map<std::string, image_size*> *image_size_dict = NULL;
         std::map<std::string, image_size*> *original_image_size_dict = NULL;
         std::map<std::string, std::vector<scrcpy_device_info_callback>*> *device_info_callback_dict = NULL;

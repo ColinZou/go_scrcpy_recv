@@ -17,7 +17,7 @@ std::string t_msg_id = "msg001";
 uint8_t t_msg_data[] = {0x00, 0xFF, 0x00, 0x01};
 int t_msg_data_len = 4;
 int counter = 0;
-
+// read data from ctrl handler
 void receive_data_thread_method(boost::shared_ptr<tcp::socket> server_conn) {
    uint8_t data_received[4];
    auto receive_len = server_conn->receive(boost::asio::buffer(data_received, t_msg_data_len));
@@ -29,12 +29,13 @@ void receive_data_thread_method(boost::shared_ptr<tcp::socket> server_conn) {
    server_conn->close();
    result_q->push(ok);
 }
+
 void msg_sender_thread_method() {
     auto tmp_msg_id = t_msg_id;
     auto tmp_msg_data = t_msg_data;
     auto tmp_data_len = t_msg_data_len;
     auto tmp_device_id = t_device_id;
-
+    // the main loop for server to send ctrl message to client
     ctrl_handler->run([tmp_msg_id, tmp_msg_data, tmp_data_len, tmp_device_id](std::string device_id, std::string msg_id, int msg_len, int send_status){
             std::lock_guard<std::mutex> lock(result_q_lock);
             counter += 1;
@@ -47,12 +48,14 @@ void msg_sender_thread_method() {
             result_q->push(ok);
     });
 }
+
 void on_connection_accepted(boost::shared_ptr<tcp::socket> conn) {
+    // start a server thread
     ctrl_handler = new scrcpy_ctrl_socket_handler(&t_device_id, conn);
     std::thread msg_sender_thread(msg_sender_thread_method);
     msg_sender_thread.detach();
     
-    // try sending a message
+    // try sending a message after locked the result_q
     std::lock_guard<std::mutex> lock(result_q_lock);
     SPDLOG_DEBUG("Trying to send a message");
     ctrl_handler->send_msg((char *)t_msg_id.c_str(), t_msg_data, t_msg_data_len);
@@ -66,6 +69,7 @@ void wait_for_result() {
         max_wait_count --;
         {
             std::lock_guard<std::mutex> lock(result_q_lock);
+            // wait for both message callback and client invokded
             if (result_q->size() >= 2) {
                 got_result = true;
                 result = result_q->front();
@@ -75,6 +79,7 @@ void wait_for_result() {
                 break;
             }
         }
+        // wait for result
         if (!got_result) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
@@ -90,6 +95,7 @@ int main() {
     // run a server
     SPDLOG_DEBUG("Try starting a test server");
     test_tcp_server *test_svr = new test_tcp_server(test_svr_port, [](boost::shared_ptr<tcp::socket> con){
+            // run a scrcpy_ctrl_handler thread right after client connection arrived
             on_connection_accepted(con);
     });
     if (test_svr->startup() != 0){
@@ -101,6 +107,7 @@ int main() {
     SPDLOG_DEBUG("Try starting a test client");
     // run a client
     test_tcp_client *test_client = new test_tcp_client("127.0.0.1", test_svr_port, [](boost::shared_ptr<tcp::socket> conn){
+        // trying to receive ctrl message data
         std::thread recv_thread(receive_data_thread_method, conn);
         recv_thread.detach();
     });

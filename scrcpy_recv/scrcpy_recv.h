@@ -66,6 +66,8 @@ SCRCPY_API void scrcpy_start_receiver(scrcpy_listener_t handle, char* listen_add
  */
 SCRCPY_API void scrcpy_shutdown_receiver(scrcpy_listener_t handle);
 
+SCRCPY_API void scrcpy_shutdown_receiver_and_logger(scrcpy_listener_t handle);
+
 /**
  * Set image size of received video data
  * This lib will try to scale the image into the width and height
