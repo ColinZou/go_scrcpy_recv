@@ -281,7 +281,7 @@ func (r *receiver) GetToken() string {
 }
 func (r *receiver) release(timeout int) {
 	// wait for threads to shutdown
-	time.Sleep(timeout * time.Second)
+	time.Sleep(time.Second * time.Duration(timeout))
 	C.scrcpy_free_receiver(r.r)
 }
 func (r *receiver) invokeFrameImageCallbacks(deviceId string, imgData *[]byte, imgSize *ImageSize, screenSize *ImageSize) {

@@ -62,8 +62,9 @@ cmake --build . --target scrcpy_recv scrcpy_demo_app --config %BUILD_CFG% &&^
 echo CPP build succeed &&^
 echo COPY BINARYIES FROM %CPP_SRC_FOLDER%\%BUILD_FOLDER%\src\%BUILD_CFG% to %LIB_BIN_TARGET_FOLDER% &&^
 xcopy /Y src\%BUILD_CFG%\*.dll %LIB_BIN_TARGET_FOLDER% &&^
-xcopy /Y src\%BUILD_CFG%\*.lib %LIB_BIN_TARGET_FOLDER% &&^
+xcopy /Y src\%BUILD_CFG%\scrcpy_recv.lib %LIB_BIN_TARGET_FOLDER% &&^
 echo ************************ &&^
 echo Building go example code &&^
 go build -C %GO_SRC_FOLDER% -o build\basic.exe examples\basic.go &&^
-XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is %GO_SRC_FOLDER%\build\basic.exe)
+XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is "%GO_SRC_FOLDER%\build\basic.exe")
+
