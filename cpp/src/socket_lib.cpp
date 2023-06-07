@@ -109,11 +109,13 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
     //check if it is a controll socket
     if (!is_ctrl_socket) {
         SPDLOG_INFO("{} is a video socket for device {} ", con_addr(connection->client_socket), connection->device_id->c_str());
+        log_flush();
         result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
         SPDLOG_INFO("Decoder just ended for device {}", connection->device_id->c_str());
         log_flush();
     } else {
         SPDLOG_INFO("{} is a ctrl socket for device {} ", con_addr(connection->client_socket), connection->device_id->c_str());
+        log_flush();
         auto handler = new scrcpy_ctrl_socket_handler(connection->device_id, connection->client_socket);
         {
             std::unique_lock lock(this->ctrl_socket_handler_map_lock);
@@ -132,11 +134,9 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
 end:
     auto connection_type = is_ctrl_socket ? "ctrl" : "video";
     SPDLOG_INFO("Doing connection cleanup for device {} connection type {}", connection->device_id->c_str(), connection_type);
-    log_flush();
     try {
         if (client_socket != NULL && client_socket->is_open()) {
             SPDLOG_DEBUG("Shutdown {}", con_addr(client_socket));
-            log_flush();
             client_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_send);
         }
     }catch(boost::system::system_error& e) {
@@ -144,8 +144,7 @@ end:
     }
     // invoke shutdown callback
     if(this->disconnected_callback && !is_ctrl_socket) {
-        SPDLOG_INFO("Invoking disconnected_callback for device {} connection_type {}", connection->device_id->c_str(), connection_type);
-        log_flush();
+        SPDLOG_DEBUG("Invoking disconnected_callback for device {} connection_type {}", connection->device_id->c_str(), connection_type);
         this->disconnected_callback((char *) this->m_token.c_str(), 
                 (char *)connection->device_id->c_str(), 
                 (char *)connection->connection_type->c_str());
@@ -155,28 +154,22 @@ end:
         auto item = this->ctrl_socket_handler_map->find(device_id_str);
         auto item_found = item != this->ctrl_socket_handler_map->end();
         SPDLOG_DEBUG("Found ctrl channel for {}, found ? {}", device_id_str.c_str(), item_found ? "yes":"no");
-        log_flush();
         if (is_ctrl_socket) {
-            SPDLOG_INFO("Trying to cleaning ctrl socket for device {}", device_id_str);
-            log_flush();
+            SPDLOG_DEBUG("Trying to cleaning ctrl socket for device {}", device_id_str);
             std::unique_lock lock(this->ctrl_socket_handler_map_lock);
             if (item_found) {
-                SPDLOG_INFO("Removing ctrl socket of {}  from map", connection->device_id->c_str());
-                log_flush();
+                SPDLOG_DEBUG("Removing ctrl socket of {}  from map", connection->device_id->c_str());
                 this->ctrl_socket_handler_map->erase(item);
             }
         } else {
             // tell ctrl socket to stop
             SPDLOG_DEBUG("device {} video socket is ending, trying to stop ctrl socket", connection->device_id->c_str());
-            log_flush();
             if (item_found) {
-                SPDLOG_INFO("Telling ctrl socket of {}  to stop ", connection->device_id->c_str());
-                log_flush();
+                SPDLOG_DEBUG("Telling ctrl socket of {}  to stop ", connection->device_id->c_str());
                 item->second->stop();
             }
         }
-        SPDLOG_INFO("Cleaning device id data of device_id={}", connection->device_id->c_str());
-        log_flush();
+        SPDLOG_DEBUG("Cleaning device id data of device_id={}", connection->device_id->c_str());
         delete connection->device_id;
         connection->device_id = NULL;
     }
@@ -184,9 +177,9 @@ end:
         delete connection->connection_type;
         connection->connection_type = NULL;
     }
-    SPDLOG_INFO("Deleting {} connection", connection_type);
+    SPDLOG_DEBUG("Deleting {} connection", connection_type);
     delete connection;
-    SPDLOG_INFO("Connection removed");
+    SPDLOG_DEBUG("Connection removed");
     log_flush();
     return result;
 }
@@ -279,20 +272,17 @@ void socket_lib::remove_all_callbacks(char* device_id) {
 }
 socket_lib::~socket_lib() {
     SPDLOG_DEBUG("Cleaning up socket_lib instance");
-    log_flush();
     if (this->callback_handler) {
         delete this->callback_handler;
         this->callback_handler = NULL;
     }
     SPDLOG_DEBUG("Cleaning up image_size_dict and original_image_size_dict");
-    log_flush();
     // free image size
     free_image_size_dict(this->image_size_dict);
     this->image_size_dict = NULL;
     free_image_size_dict(this->original_image_size_dict);
     this->original_image_size_dict = NULL;
     SPDLOG_DEBUG("Cleaning up device_info_callback_dict");
-    log_flush();
     if (this->device_info_callback_dict) {
         std::lock_guard<std::mutex> lock(this->device_info_callback_dict_lock);
         auto dict = this->device_info_callback_dict;
@@ -307,7 +297,6 @@ socket_lib::~socket_lib() {
         this->device_info_callback_dict = NULL;
     }
     SPDLOG_DEBUG("Cleaning up ctrl_socket_handler_map");
-    log_flush();
     if (this->ctrl_socket_handler_map) {
         std::unique_lock lock(this->ctrl_socket_handler_map_lock);
         this->ctrl_socket_handler_map->clear();
@@ -315,7 +304,6 @@ socket_lib::~socket_lib() {
         this->ctrl_socket_handler_map = NULL;
     }
     SPDLOG_DEBUG("Cleaning up ctrl_sending_callback_map");
-    log_flush();
     if (this->ctrl_sending_callback_map) {
         std::lock_guard<std::mutex> lock(this->ctrl_sending_callback_map_lock);
         this->ctrl_sending_callback_map->clear();
@@ -439,7 +427,6 @@ void socket_lib::send_ctrl_msg(char *device_id, char *msg_id, uint8_t* data, int
         return;
     }
     SPDLOG_DEBUG("Sending control msg id={}, data_len={} for device={}", msg_id, data_len, device_id);
-    log_flush();
     handler->send_msg(msg_id, data, data_len);
 }
 
