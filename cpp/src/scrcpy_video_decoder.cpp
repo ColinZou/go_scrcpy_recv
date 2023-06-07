@@ -258,6 +258,7 @@ int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
             read_length = (int)this->socket->receive(boost::asio::buffer(chunk, chunk_read_plan));
         } catch(boost::system::system_error& e) {
             SPDLOG_ERROR("Failed to recv_network_buffer {}", e.what());
+            return 1;
         }
         if (read_length != chunk_read_plan) {
             SPDLOG_ERROR("Planned to read {} bytes, got {} bytes instead from socket={}", chunk_read_plan, read_length, con_addr(this->socket));
@@ -464,15 +465,19 @@ end:
 int VideoDecoder::decode() {
     if (this->read_device_info()) {
         SPDLOG_ERROR("Failed to read device info for socket {} ", con_addr(this->socket));
+        log_flush();
         return 1;
     }
     if (this->init_decoder() != 0) {
         SPDLOG_ERROR("Failed to init decoder for socket {} ", con_addr(this->socket));
+        log_flush();
         return 1;
     }
     struct VideoHeader header;
     int keep_connection = 1;
     int status = 0;
+    SPDLOG_DEBUG("Trying to run a loop for receiving video data from {} ", con_addr(this->socket));
+    log_flush();
     while (*this->keep_running == 1 && keep_connection == 1) {
         int header_size = this->read_video_header(&header);
         if (header_size <= 0) {
@@ -492,10 +497,14 @@ int VideoDecoder::decode() {
             break;
         }
     }
+    SPDLOG_DEBUG("Decoder loop was stopped for {} ", con_addr(this->socket));
+    log_flush();
     return status;
 }
 int socket_decode(boost::shared_ptr<tcp::socket> socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
         int *keep_running) {
+    SPDLOG_INFO("socket_decode {}", con_addr(socket));
+    log_flush();
     auto buffer_size = buffer_cfg->video_packet_buffer_size_kb * 1024 * 2;
     std::vector<uchar> * image_buffer = new std::vector<uchar>(buffer_size);
     int result_code = 0;

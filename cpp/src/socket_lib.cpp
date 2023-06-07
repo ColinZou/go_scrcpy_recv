@@ -65,7 +65,7 @@ void socket_lib::config_image_size(char* device_id, int width, int height) {
         delete find->second;
         find->second = size_obj;
     }
-    SPDLOG_DEBUG("There're %lu items inside image_size_dict", (long)(this->image_size_dict->size()));
+    SPDLOG_DEBUG("There're {} items inside image_size_dict", (long)(this->image_size_dict->size()));
 }
 
 std::string* socket_lib::read_socket_type(ClientConnection* connection) {
@@ -347,10 +347,10 @@ void socket_lib::register_device_info_callback(char* device_id, scrcpy_device_in
         std::vector<scrcpy_device_info_callback> *callbacks = new std::vector<scrcpy_device_info_callback>();
         callbacks->push_back(callback);
         dict->emplace(std::string(device_id), callbacks);
-        SPDLOG_DEBUG("there're %lu callbacks for device {}", callbacks->size(), device_id);
+        SPDLOG_DEBUG("there're {} callbacks for device {}", callbacks->size(), device_id);
     } else {
         find->second->push_back(callback);
-        SPDLOG_DEBUG("there're %lu callbacks for device {}", find->second->size(), device_id);
+        SPDLOG_DEBUG("there're {} callbacks for device {}", find->second->size(), device_id);
     }
 }
 

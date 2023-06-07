@@ -45,6 +45,6 @@ endif()
 add_test(NAME test_utils COMMAND $<TARGET_FILE:test_utils>)
 add_test(NAME test_frame_img_callback COMMAND $<TARGET_FILE:test_frame_img_callback>)
 add_test(NAME test_scrcpy_ctrl_handler COMMAND $<TARGET_FILE:test_scrcpy_ctrl_handler>)
-add_test(NAME test_scrcpy_support COMMAND $<TARGET_FILE:test_scrcpy_support> ${CMAKE_CURRENT_SOURCE_DIR}/video.mp4)
+add_test(NAME test_scrcpy_support COMMAND $<TARGET_FILE:test_scrcpy_support> ${CMAKE_CURRENT_SOURCE_DIR}/data.h264)
 
 

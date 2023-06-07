@@ -53,7 +53,7 @@ echo clean built binary first && del /S /F /Q %LIB_BIN_TARGET_FOLDER% &&^
 cd %BUILD_FOLDER% && cmake -DCMAKE_BUILD_TYPE=%BUILD_CFG% .. &&^
 IF /i "%1" == "runtest" (
 echo "Will run test(s) : %ALL_TESTS%" &&^
-set SCRCPY_DEBUG_ENABLED=1 &&^
+set SCRCPY_DEBUG_ENABLED=0 &&^
 echo Run tests && cmake --build . --target %ALL_TESTS% --config %BUILD_CFG% &&^
 ctest -C %BUILD_CFG% -VV --output-on-failure 
 ) ELSE (
