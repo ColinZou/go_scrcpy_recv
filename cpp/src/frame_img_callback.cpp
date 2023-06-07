@@ -23,7 +23,7 @@ int frame_img_processor::callback_thread(device_frame_img_callback *callback_ite
         frame_img_callback_params* allocated_frame = NULL;
         if (!frames->empty()) {
             //grab a frame from front
-            int total = frames->size();
+            int total = (int)frames->size();
             while(!frames->empty() && total > 0) {
                 frame_img_callback_params* cur_frame = frames->front();
                 frames->pop();
@@ -140,8 +140,8 @@ void frame_img_processor::add(char *device_id, frame_callback_handler callback, 
         }
         char *device_id_cpy = (char*)malloc(sizeof(char) * strlen(device_id) + 1);
         char *token_cpy = (char*)malloc(sizeof(char) * strlen(token) + 1);
-        array_copy_to(device_id, device_id_cpy, 0, strlen(device_id) + 1);
-        array_copy_to(token, token_cpy, 0, strlen(token) + 1);
+        array_copy_to(device_id, device_id_cpy, 0, (int)strlen(device_id) + 1);
+        array_copy_to(token, token_cpy, 0, (int)strlen(token) + 1);
         callback_item->device_id = device_id_cpy;
         callback_item->handler_count = 1;
         callback_item->token = token_cpy;
@@ -262,7 +262,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
     if (buffed_frames >= MAX_PENDING_FRAMES ) {
         auto frames = handler_container->frames;
         // get a frame from back 
-        int total = frames->size();
+        int total = (int)frames->size();
         while(!frames->empty() && total > 0) {
             total --;
             auto temp_frame = frames->front();
@@ -300,7 +300,7 @@ void frame_img_processor::invoke(char *token, char* device_id, uint8_t* frame_da
     }
     SPDLOG_TRACE("Current callback param is {}", (uintptr_t)params);
     // realloc ram
-    if (params->buffer_size < frame_data_size) {
+    if (params->buffer_size < (int)frame_data_size) {
         free(params->frame_data);
         auto buffer_size = calc_buffer_size(frame_data_size, MAX_IMG_BUFFER_SIZE);
         SPDLOG_TRACE("Re-allocating {} bytes for fram cache", buffer_size);

@@ -21,7 +21,7 @@ class logger_config {
             init_debug_status();
         }
         void init_logger() {
-            spdlog::set_pattern("[%H:%M:%S %z] [%s#%#%!] [%n] [%^---%L---%$] [thread %t] %v");
+            spdlog::set_pattern("[%H:%M:%S %z] [%s#%#-%!] [%n] [%^---%L---%$] [thread %t] %v");
             if (m_enabled >= 0) {
                 spdlog::level::level_enum target_level = spdlog::level::debug;
                 switch(m_enabled) {
@@ -59,7 +59,7 @@ class logger_config {
                     this->logger->flush_on(spdlog::level::info);
                     this->logger->flush_on(spdlog::level::warn);
                     this->logger->flush_on(spdlog::level::err);
-                    printf("Will logging into scrcpy_debug.log\n");
+                    printf("Will logging into %s\n", LOG_FILENAME);
                 } catch(const spdlog::spdlog_ex &ex) {
                     printf("Failed to create logger: %s\n", ex.what());
                 }
@@ -95,6 +95,9 @@ class logger_config {
 
 logger_config *cfg = new logger_config();
 void logging_cleanup() {
+    if (!cfg) {
+        return;
+    }
     delete cfg;
     cfg = NULL;
 }

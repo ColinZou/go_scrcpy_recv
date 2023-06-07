@@ -91,7 +91,7 @@ func run_server() {
 	listener = receiver
 	configFromEnv()
 	receiver.Startup("27183", 2048, 4096)
-	scrcpy_recv.Release(receiver)
+	scrcpy_recv.Release(receiver, 2)
 }
 
 func main() {

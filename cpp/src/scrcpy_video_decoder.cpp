@@ -232,7 +232,7 @@ int VideoDecoder::read_video_header(struct VideoHeader* header) {
     SPDLOG_TRACE("Trying to read video header({} bytes) from {} into {} ", H264_HEAD_BUFFER_SIZE, con_addr(this->socket), (uintptr_t)header_buffer);
     int bytes_received = 0;
     try {
-        bytes_received = this->socket->receive(boost::asio::buffer(header_buffer, H264_HEAD_BUFFER_SIZE));
+        bytes_received = (int)this->socket->receive(boost::asio::buffer(header_buffer, H264_HEAD_BUFFER_SIZE));
         if (bytes_received != H264_HEAD_BUFFER_SIZE) {
             SPDLOG_ERROR("Error, Read {}/{} for video header", bytes_received, H264_HEAD_BUFFER_SIZE);
             return 1;
@@ -255,9 +255,10 @@ int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
         int chunk_read_plan = min(max_chunk, length - read_total);
         int read_length = 0;
         try {
-            read_length = this->socket->receive(boost::asio::buffer(chunk, chunk_read_plan));
+            read_length = (int)this->socket->receive(boost::asio::buffer(chunk, chunk_read_plan));
         } catch(boost::system::system_error& e) {
             SPDLOG_ERROR("Failed to recv_network_buffer {}", e.what());
+            return 1;
         }
         if (read_length != chunk_read_plan) {
             SPDLOG_ERROR("Planned to read {} bytes, got {} bytes instead from socket={}", chunk_read_plan, read_length, con_addr(this->socket));
@@ -386,10 +387,10 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
     SPDLOG_TRACE("Encoding image to png format");
     if (cv::imencode(".png", image, *this->img_buffer)) {
         image.release();
-        int img_size = this->img_buffer->size();
+        int img_size = (int)this->img_buffer->size();
         SPDLOG_TRACE("sending {} bytes to callback", img_size);
         uint8_t* img_data = (uint8_t*)this->img_buffer->data();
-        this->callback->on_video_callback(device_id, img_data, this->img_buffer->size(), target_width, target_height, width, height);
+        this->callback->on_video_callback(device_id, img_data, (int)this->img_buffer->size(), target_width, target_height, width, height);
     } else {
         SPDLOG_ERROR("Failed to encode a png file");
     }
@@ -464,15 +465,19 @@ end:
 int VideoDecoder::decode() {
     if (this->read_device_info()) {
         SPDLOG_ERROR("Failed to read device info for socket {} ", con_addr(this->socket));
+        log_flush();
         return 1;
     }
     if (this->init_decoder() != 0) {
         SPDLOG_ERROR("Failed to init decoder for socket {} ", con_addr(this->socket));
+        log_flush();
         return 1;
     }
     struct VideoHeader header;
     int keep_connection = 1;
     int status = 0;
+    SPDLOG_DEBUG("Trying to run a loop for receiving video data from {} ", con_addr(this->socket));
+    log_flush();
     while (*this->keep_running == 1 && keep_connection == 1) {
         int header_size = this->read_video_header(&header);
         if (header_size <= 0) {
@@ -492,10 +497,14 @@ int VideoDecoder::decode() {
             break;
         }
     }
+    SPDLOG_DEBUG("Decoder loop was stopped for {} ", con_addr(this->socket));
+    log_flush();
     return status;
 }
 int socket_decode(boost::shared_ptr<tcp::socket> socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
         int *keep_running) {
+    SPDLOG_INFO("socket_decode {}", con_addr(socket));
+    log_flush();
     auto buffer_size = buffer_cfg->video_packet_buffer_size_kb * 1024 * 2;
     std::vector<uchar> * image_buffer = new std::vector<uchar>(buffer_size);
     int result_code = 0;
@@ -504,9 +513,12 @@ int socket_decode(boost::shared_ptr<tcp::socket> socket, video_decode_callback *
             image_buffer);
     int result = decoder->decode();
     SPDLOG_INFO("Video decoder is shutting down");
+    log_flush();
     delete image_buffer;
     SPDLOG_INFO("Video decoder img_buffer cleared");
+    log_flush();
     delete decoder;
     SPDLOG_INFO("Video decoder deleted");
+    log_flush();
     return result;
 }

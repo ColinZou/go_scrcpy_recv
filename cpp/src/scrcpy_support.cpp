@@ -11,7 +11,9 @@ SCRCPY_API scrcpy_listener_t scrcpy_new_receiver(char *token) {
     return (scrcpy_listener_t) instance;
 }
 SCRCPY_API void scrcpy_free_receiver(scrcpy_listener_t handle) {
-    delete static_cast<socket_lib*>(handle);
+    if(handle) {
+        static_cast<socket_lib*>(handle)->try_release();
+    }
 }
 SCRCPY_API void scrcpy_start_receiver(scrcpy_listener_t handle, char* listen_address, int net_buffer_size, int video_buffer_size) {
     static_cast<socket_lib*>(handle)->startup(listen_address, net_buffer_size, video_buffer_size);
@@ -19,9 +21,12 @@ SCRCPY_API void scrcpy_start_receiver(scrcpy_listener_t handle, char* listen_add
 
 SCRCPY_API void scrcpy_shutdown_receiver(scrcpy_listener_t handle) {
     static_cast<socket_lib*>(handle)->shutdown_svr();
-    logging_cleanup();
 }
 
+SCRCPY_API void scrcpy_shutdown_receiver_and_logger(scrcpy_listener_t handle) {
+    scrcpy_shutdown_receiver(handle);
+    logging_cleanup();
+}
 SCRCPY_API void scrcpy_set_image_size(scrcpy_listener_t handle, char* device_id, int width, int height) {
     static_cast<socket_lib*>(handle)->config_image_size(device_id, width, height);
 }

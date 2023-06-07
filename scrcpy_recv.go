@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 	"unsafe"
 )
 
@@ -154,7 +155,7 @@ func (r *receiver) Startup(listenAddr string, networkBufferSizeKb int, videoBuff
 }
 
 func (r *receiver) Shutdown() {
-	C.scrcpy_shutdown_receiver(r.r)
+	C.scrcpy_shutdown_receiver_and_logger(r.r)
 }
 
 func (r *receiver) SetFrameImageSize(deviceId string, width int, height int) {
@@ -278,7 +279,9 @@ func (r *receiver) RemoveAllDeviceInfoCallbacks(deviceId string) {
 func (r *receiver) GetToken() string {
 	return r.token
 }
-func (r *receiver) release() {
+func (r *receiver) release(timeout int) {
+	// wait for threads to shutdown
+	time.Sleep(time.Second * time.Duration(timeout))
 	C.scrcpy_free_receiver(r.r)
 }
 func (r *receiver) invokeFrameImageCallbacks(deviceId string, imgData *[]byte, imgSize *ImageSize, screenSize *ImageSize) {
@@ -423,8 +426,8 @@ func New(token string) Receiver {
 		disconnectedCallbacks:  make(map[string][]DeviceDisconnectedCallback),
 	}
 }
-func Release(handle Receiver) {
-	handle.(*receiver).release()
+func Release(handle Receiver, timeout int) {
+	handle.(*receiver).release(timeout)
 }
 
 //export goScrcpyFrameImageCallback

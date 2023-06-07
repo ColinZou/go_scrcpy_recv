@@ -41,7 +41,7 @@ call "%vc_dir%\Common7\Tools\vsdevcmd.bat" -arch=x86 -host_arch=x64
 REM build dll
 set BUILD_FOLDER=build
 set BUILD_CFG=Release
-set ALL_TESTS=test_utils test_frame_img_callback test_scrcpy_ctrl_handler
+set ALL_TESTS=test_utils test_frame_img_callback test_scrcpy_ctrl_handler test_scrcpy_support
 set ALL_TESTS_CPY=%ALL_TESTS%
 FOR %%i in (%ALL_TESTS_CPY%) DO IF /I "%%i" == "%2" SET ALL_TESTS=%%i
 
@@ -53,7 +53,7 @@ echo clean built binary first && del /S /F /Q %LIB_BIN_TARGET_FOLDER% &&^
 cd %BUILD_FOLDER% && cmake -DCMAKE_BUILD_TYPE=%BUILD_CFG% .. &&^
 IF /i "%1" == "runtest" (
 echo "Will run test(s) : %ALL_TESTS%" &&^
-set SCRCPY_DEBUG_ENABLED=1 &&^
+set SCRCPY_DEBUG_ENABLED=0 &&^
 echo Run tests && cmake --build . --target %ALL_TESTS% --config %BUILD_CFG% &&^
 ctest -C %BUILD_CFG% -VV --output-on-failure 
 ) ELSE (
@@ -62,8 +62,9 @@ cmake --build . --target scrcpy_recv scrcpy_demo_app --config %BUILD_CFG% &&^
 echo CPP build succeed &&^
 echo COPY BINARYIES FROM %CPP_SRC_FOLDER%\%BUILD_FOLDER%\src\%BUILD_CFG% to %LIB_BIN_TARGET_FOLDER% &&^
 xcopy /Y src\%BUILD_CFG%\*.dll %LIB_BIN_TARGET_FOLDER% &&^
-xcopy /Y src\%BUILD_CFG%\*.lib %LIB_BIN_TARGET_FOLDER% &&^
+xcopy /Y src\%BUILD_CFG%\scrcpy_recv.lib %LIB_BIN_TARGET_FOLDER% &&^
 echo ************************ &&^
 echo Building go example code &&^
 go build -C %GO_SRC_FOLDER% -o build\basic.exe examples\basic.go &&^
-XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is %GO_SRC_FOLDER%\build\basic.exe)
+XCOPY /Y %LIB_BIN_TARGET_FOLDER%\*.dll %GO_SRC_FOLDER%\build && echo Build OK, binary is "%GO_SRC_FOLDER%\build\basic.exe")
+

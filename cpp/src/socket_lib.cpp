@@ -14,12 +14,6 @@
 
 using boost::asio::ip::tcp;
 
-#ifndef SCRCPY_CTRL_SOCKET_NAME
-#define SCRCPY_CTRL_SOCKET_NAME "ctrl"
-#define SCRCPY_SOCKET_HEADER_SIZE 80 // 64 bytes name, 16 bytes type
-#define SCRCPY_HEADER_DEVICE_ID_LEN 64                                
-#define SCRCPY_HEADER_TYPE_LEN 16
-#endif //!SCRCPY_CTRL_SOCKET_NAME
 
 socket_lib::socket_lib(std::string token) : 
     image_size_dict(new std::map<std::string, image_size*>()), 
@@ -71,7 +65,7 @@ void socket_lib::config_image_size(char* device_id, int width, int height) {
         delete find->second;
         find->second = size_obj;
     }
-    SPDLOG_DEBUG("There're %lu items inside image_size_dict", (long)(this->image_size_dict->size()));
+    SPDLOG_DEBUG("There're {} items inside image_size_dict", (long)(this->image_size_dict->size()));
 }
 
 std::string* socket_lib::read_socket_type(ClientConnection* connection) {
@@ -80,7 +74,7 @@ std::string* socket_lib::read_socket_type(ClientConnection* connection) {
     char *device_id = (char*) malloc(SCRCPY_HEADER_DEVICE_ID_LEN * sizeof(char));
     char *socket_type = (char*) malloc(SCRCPY_HEADER_TYPE_LEN * sizeof(char));
     try {
-        int received = connection->client_socket->receive(boost::asio::buffer(data, buf_size));
+        int received = (int)connection->client_socket->receive(boost::asio::buffer(data, buf_size));
         SPDLOG_DEBUG("received {}/{} bytes header", received, SCRCPY_SOCKET_HEADER_SIZE);
         if (received != buf_size) {
             return NULL;
@@ -115,10 +109,13 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
     //check if it is a controll socket
     if (!is_ctrl_socket) {
         SPDLOG_INFO("{} is a video socket for device {} ", con_addr(connection->client_socket), connection->device_id->c_str());
+        log_flush();
         result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
         SPDLOG_INFO("Decoder just ended for device {}", connection->device_id->c_str());
+        log_flush();
     } else {
         SPDLOG_INFO("{} is a ctrl socket for device {} ", con_addr(connection->client_socket), connection->device_id->c_str());
+        log_flush();
         auto handler = new scrcpy_ctrl_socket_handler(connection->device_id, connection->client_socket);
         {
             std::unique_lock lock(this->ctrl_socket_handler_map_lock);
@@ -131,18 +128,23 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
         };
         result = handler->run(callback);
         SPDLOG_INFO("Deleting handler  of device {}'s ctrl socket", connection->device_id->c_str());
+        log_flush();
     }
     goto end;
 end:
     auto connection_type = is_ctrl_socket ? "ctrl" : "video";
     SPDLOG_INFO("Doing connection cleanup for device {} connection type {}", connection->device_id->c_str(), connection_type);
-    if (client_socket != NULL && client_socket->is_open()) {
-        SPDLOG_DEBUG("Shutdown {}", con_addr(client_socket));
-        client_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+    try {
+        if (client_socket != NULL && client_socket->is_open()) {
+            SPDLOG_DEBUG("Shutdown {}", con_addr(client_socket));
+            client_socket->shutdown(boost::asio::ip::tcp::socket::shutdown_send);
+        }
+    }catch(boost::system::system_error& e) {
+        SPDLOG_ERROR("Got error when trying to close connection {}", e.what());
     }
     // invoke shutdown callback
     if(this->disconnected_callback && !is_ctrl_socket) {
-        SPDLOG_INFO("Invoking disconnected_callback for device {} connection_type {}", connection->device_id->c_str(), connection_type);
+        SPDLOG_DEBUG("Invoking disconnected_callback for device {} connection_type {}", connection->device_id->c_str(), connection_type);
         this->disconnected_callback((char *) this->m_token.c_str(), 
                 (char *)connection->device_id->c_str(), 
                 (char *)connection->connection_type->c_str());
@@ -153,21 +155,21 @@ end:
         auto item_found = item != this->ctrl_socket_handler_map->end();
         SPDLOG_DEBUG("Found ctrl channel for {}, found ? {}", device_id_str.c_str(), item_found ? "yes":"no");
         if (is_ctrl_socket) {
-            SPDLOG_INFO("Trying to cleaning ctrl socket for device {}", device_id_str);
+            SPDLOG_DEBUG("Trying to cleaning ctrl socket for device {}", device_id_str);
             std::unique_lock lock(this->ctrl_socket_handler_map_lock);
             if (item_found) {
-                SPDLOG_INFO("Removing ctrl socket of {}  from map", connection->device_id->c_str());
+                SPDLOG_DEBUG("Removing ctrl socket of {}  from map", connection->device_id->c_str());
                 this->ctrl_socket_handler_map->erase(item);
             }
         } else {
             // tell ctrl socket to stop
             SPDLOG_DEBUG("device {} video socket is ending, trying to stop ctrl socket", connection->device_id->c_str());
             if (item_found) {
-                SPDLOG_INFO("Telling ctrl socket of {}  to stop ", connection->device_id->c_str());
+                SPDLOG_DEBUG("Telling ctrl socket of {}  to stop ", connection->device_id->c_str());
                 item->second->stop();
             }
         }
-        SPDLOG_INFO("Cleaning device id data of device_id={}", connection->device_id->c_str());
+        SPDLOG_DEBUG("Cleaning device id data of device_id={}", connection->device_id->c_str());
         delete connection->device_id;
         connection->device_id = NULL;
     }
@@ -175,9 +177,9 @@ end:
         delete connection->connection_type;
         connection->connection_type = NULL;
     }
-    SPDLOG_INFO("Deleting {} connection", connection_type);
+    SPDLOG_DEBUG("Deleting {} connection", connection_type);
     delete connection;
-    SPDLOG_INFO("Connection removed");
+    SPDLOG_DEBUG("Connection removed");
     log_flush();
     return result;
 }
@@ -186,25 +188,31 @@ int socket_lib::accept_new_connection(connection_buffer_config* cfg) {
     int result = 0;
     do {
         SPDLOG_DEBUG("Trying to accepting a new connection for listener {}", listen_socket->local_endpoint().address().to_string());
-        ClientConnection* connection = new ClientConnection();
-        tcp::socket *client_socket = new tcp::socket(*this->io_context);
-        // accept a connection
-        connection->client_socket = boost::shared_ptr<tcp::socket>(client_socket);
-        this->listen_socket->accept(*client_socket);
-        SPDLOG_DEBUG("New connection accpeted: {}", con_addr(connection->client_socket));
-        if (!connection) {
-            SPDLOG_ERROR("No enough memory to handling incoming connection {}", con_addr(connection->client_socket));
-            client_socket->close();
-            continue;
+        try {
+
+            ClientConnection* connection = new ClientConnection();
+            tcp::socket *client_socket = new tcp::socket(*this->io_context);
+            // accept a connection
+            connection->client_socket = boost::shared_ptr<tcp::socket>(client_socket);
+            this->listen_socket->accept(*client_socket);
+            SPDLOG_DEBUG("New connection accpeted: {}", con_addr(connection->client_socket));
+            if (!connection) {
+                SPDLOG_ERROR("No enough memory to handling incoming connection {}", con_addr(connection->client_socket));
+                client_socket->close();
+                continue;
+            }
+            connection->buffer_cfg = cfg;
+            std::thread connection_thread(&socket_lib::handle_connetion, this, connection);
+            connection_thread.detach();
+        } catch(boost::system::system_error& e) {
+            SPDLOG_ERROR("Could not accept net connection: {}", e.what());
+            log_flush();
+            break;
         }
-        connection->buffer_cfg = cfg;
-        std::thread connection_thread(&socket_lib::handle_connetion, this, connection);
-        connection_thread.detach();
     } while (keep_accept_connection > 0);
+    // free this listener
     SPDLOG_WARN("Server listener is shutting down");
     log_flush();
-    // free this listener
-    delete this;
     return result;
 }
 int socket_lib::startup(char* address, int network_buffer_size_kb, int video_packet_buffer_size_kb) {
@@ -221,6 +229,10 @@ int socket_lib::startup(char* address, int network_buffer_size_kb, int video_pac
         std::thread server_thread(&socket_lib::accept_new_connection, this, &cfg);
         SPDLOG_INFO("Started new thread accepting new connection for listener at port {}", port_no);
         server_thread.join();
+        {
+            std::lock_guard<std::mutex> lock(this->keep_accept_connection_lock);
+            this->shutting_down = true;
+        }
         SPDLOG_INFO("Server thread stopped");
         this->listen_socket->close();
         this->listen_socket = NULL;
@@ -233,6 +245,11 @@ int socket_lib::startup(char* address, int network_buffer_size_kb, int video_pac
     }
     return 0;
 }
+
+void socket_lib::try_release() {
+    delete this;
+}
+
 image_size* socket_lib::get_original_screen_size(char* device_id) {
     return this->internal_get_image_size(this->original_image_size_dict, device_id);
 }
@@ -243,6 +260,9 @@ void socket_lib::shutdown_svr() {
     if (keep_accept_connection == 0) {
         return;
     }
+    if(this->listen_socket) {
+        this->listen_socket->cancel();
+    }
     keep_accept_connection = 0;
 }
 
@@ -251,13 +271,18 @@ void socket_lib::remove_all_callbacks(char* device_id) {
     callback_handler->del_all(device_id);
 }
 socket_lib::~socket_lib() {
+    SPDLOG_DEBUG("Cleaning up socket_lib instance");
     if (this->callback_handler) {
         delete this->callback_handler;
         this->callback_handler = NULL;
     }
+    SPDLOG_DEBUG("Cleaning up image_size_dict and original_image_size_dict");
     // free image size
     free_image_size_dict(this->image_size_dict);
+    this->image_size_dict = NULL;
     free_image_size_dict(this->original_image_size_dict);
+    this->original_image_size_dict = NULL;
+    SPDLOG_DEBUG("Cleaning up device_info_callback_dict");
     if (this->device_info_callback_dict) {
         std::lock_guard<std::mutex> lock(this->device_info_callback_dict_lock);
         auto dict = this->device_info_callback_dict;
@@ -271,18 +296,22 @@ socket_lib::~socket_lib() {
         delete this->device_info_callback_dict;
         this->device_info_callback_dict = NULL;
     }
+    SPDLOG_DEBUG("Cleaning up ctrl_socket_handler_map");
     if (this->ctrl_socket_handler_map) {
         std::unique_lock lock(this->ctrl_socket_handler_map_lock);
         this->ctrl_socket_handler_map->clear();
         delete this->ctrl_socket_handler_map;
         this->ctrl_socket_handler_map = NULL;
     }
+    SPDLOG_DEBUG("Cleaning up ctrl_sending_callback_map");
     if (this->ctrl_sending_callback_map) {
         std::lock_guard<std::mutex> lock(this->ctrl_sending_callback_map_lock);
         this->ctrl_sending_callback_map->clear();
         delete this->ctrl_sending_callback_map;
         this->ctrl_sending_callback_map = NULL;
     }
+    SPDLOG_DEBUG("Finished cleaning socket_lib");
+    log_flush();
 }
 
 image_size* socket_lib::internal_get_image_size(std::map<std::string, image_size*>* dict, std::string device_id) {
@@ -294,6 +323,9 @@ image_size* socket_lib::internal_get_image_size(std::map<std::string, image_size
     return NULL;
 }
 void socket_lib::free_image_size_dict(std::map<std::string, image_size*>* dict) {
+    if(!dict) {
+        return;
+    }
     auto first_one = dict->begin();
     while (first_one != dict->end()) {
         free(first_one->second);
@@ -315,10 +347,10 @@ void socket_lib::register_device_info_callback(char* device_id, scrcpy_device_in
         std::vector<scrcpy_device_info_callback> *callbacks = new std::vector<scrcpy_device_info_callback>();
         callbacks->push_back(callback);
         dict->emplace(std::string(device_id), callbacks);
-        SPDLOG_DEBUG("there're %lu callbacks for device {}", callbacks->size(), device_id);
+        SPDLOG_DEBUG("there're {} callbacks for device {}", callbacks->size(), device_id);
     } else {
         find->second->push_back(callback);
-        SPDLOG_DEBUG("there're %lu callbacks for device {}", find->second->size(), device_id);
+        SPDLOG_DEBUG("there're {} callbacks for device {}", find->second->size(), device_id);
     }
 }
 
@@ -395,7 +427,6 @@ void socket_lib::send_ctrl_msg(char *device_id, char *msg_id, uint8_t* data, int
         return;
     }
     SPDLOG_DEBUG("Sending control msg id={}, data_len={} for device={}", msg_id, data_len, device_id);
-    log_flush();
     handler->send_msg(msg_id, data, data_len);
 }
 
