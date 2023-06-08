@@ -3,7 +3,6 @@ REM SETUP GLOBAL VARS
 set SCRIPT_DIR=%~dp0
 set GO_SRC_FOLDER=%SCRIPT_DIR%..
 set SRCDIR=%GO_SRC_FOLDER%
-set SCRCPY_DEBUG_ENABLED=
 set CPP_SRC_FOLDER=%SCRIPT_DIR%..\cpp
 set LIB_BIN_VS_ROOT_FOLDER=%SCRIPT_DIR%..\lib\scrcpy_recv
 set LIB_BIN_TARGET_FOLDER=%SCRIPT_DIR%..\lib\scrcpy_recv_bin
@@ -53,7 +52,7 @@ echo clean built binary first && del /S /F /Q %LIB_BIN_TARGET_FOLDER% &&^
 cd %BUILD_FOLDER% && cmake -DCMAKE_BUILD_TYPE=%BUILD_CFG% .. &&^
 IF /i "%1" == "runtest" (
 echo "Will run test(s) : %ALL_TESTS%" &&^
-set SCRCPY_DEBUG_ENABLED=0 &&^
+set SCRCPY_DEBUG_ENABLED='0' &&^
 echo Run tests && cmake --build . --target %ALL_TESTS% --config %BUILD_CFG% &&^
 ctest -C %BUILD_CFG% -VV --output-on-failure 
 ) ELSE (

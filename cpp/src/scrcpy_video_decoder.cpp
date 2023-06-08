@@ -229,7 +229,7 @@ int VideoDecoder::init_decoder() {
 }
 int VideoDecoder::read_video_header(struct VideoHeader* header) {
     char* header_buffer = this->header_buffer;
-    SPDLOG_TRACE("Trying to read video header({} bytes) from {} into {} ", H264_HEAD_BUFFER_SIZE, con_addr(this->socket), (uintptr_t)header_buffer);
+    SPDLOG_DEBUG("Trying to read video header({} bytes) from {} into {} ", H264_HEAD_BUFFER_SIZE, con_addr(this->socket), (uintptr_t)header_buffer);
     int bytes_received = 0;
     try {
         bytes_received = (int)this->socket->receive(boost::asio::buffer(header_buffer, H264_HEAD_BUFFER_SIZE));
@@ -245,6 +245,7 @@ int VideoDecoder::read_video_header(struct VideoHeader* header) {
     int length = to_int(header_buffer, bytes_received, 8, 4);
     header->length = length;
     header->pts = pts;
+    SPDLOG_DEBUG("header.length={} header.pts={}", length, pts);
     return bytes_received;
 }
 int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
@@ -261,7 +262,7 @@ int VideoDecoder::recv_network_buffer(int length, char* buffer, char* chunk) {
             return 1;
         }
         if (read_length != chunk_read_plan) {
-            SPDLOG_ERROR("Planned to read {} bytes, got {} bytes instead from socket={}", chunk_read_plan, read_length, con_addr(this->socket));
+            SPDLOG_DEBUG("Planned to read {} bytes, got {} bytes instead from socket={}", chunk_read_plan, read_length, con_addr(this->socket));
         }
         else if (read_length <= 0) {
             SPDLOG_ERROR("Connection may be closed for device {}", this->device_id);
@@ -401,7 +402,7 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
     BOOL reset_has_pending = FALSE;
     int status = 0;
     AVFrame* frame = NULL;
-    SPDLOG_TRACE("decode_frames pts={} length={} socket={}", pts, length, con_addr(this->socket));
+    SPDLOG_DEBUG("decode_frames pts={} length={} socket={}", pts, length, con_addr(this->socket));
     result = this->recv_network_buffer(length, this->packet_buffer, this->packet_chunk);
     // failed to receiving data
     if (result != 0) {
@@ -412,15 +413,15 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
     if (result == 1) {
         return result;
     }
-    SPDLOG_TRACE("Fetching codec parser context for socekt {}", con_addr(this->socket));
+    SPDLOG_DEBUG("Fetching codec parser context for socekt {}", con_addr(this->socket));
     AVCodecParserContext* parser_context = this->codec_parser_context;
     if (parser_context->key_frame == 1) {
         active_packet->flags = (active_packet->flags | AV_PKT_FLAG_KEY);
-        SPDLOG_TRACE("Confiuring flags for socket {}", con_addr(this->socket));
+        SPDLOG_DEBUG("Confiuring flags for socket {}", con_addr(this->socket));
     }
-    SPDLOG_TRACE("Fetching codec context for socket {}", con_addr(this->socket));
+    SPDLOG_DEBUG("Fetching codec context for socket {}", con_addr(this->socket));
     AVCodecContext* codec_context = this->codec_ctx;
-    SPDLOG_TRACE("Sending packet for decoding, data pointer address is {} size={} socket={}", (uintptr_t)active_packet->data,
+    SPDLOG_DEBUG("Sending packet for decoding, data pointer address is {} size={} socket={}", (uintptr_t)active_packet->data,
             active_packet->size, con_addr(this->socket));
     result = avcodec_send_packet(codec_context, active_packet);
     if (result != 0) {
@@ -441,7 +442,7 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
     while (status >= 0) {
         status = avcodec_receive_frame(codec_context, frame);
         if (status == 0) {
-            SPDLOG_TRACE("Got frame with width={} height={} socket={} ", frame->width, frame->height, con_addr(this->socket));
+            SPDLOG_DEBUG("Got frame with width={} height={} socket={} ", frame->width, frame->height, con_addr(this->socket));
             this->rgb_frame_and_callback(codec_context, frame);
         }
         else if (status == AVERROR(EAGAIN)) {
@@ -457,7 +458,7 @@ int VideoDecoder::decode_frames(uint64_t pts, int length) {
     }
 end:
     if (has_pending && reset_has_pending) {
-        SPDLOG_TRACE("Reset has_pending=false for socket {}", con_addr(this->socket));
+        SPDLOG_DEBUG("Reset has_pending=false for socket {}", con_addr(this->socket));
         this->has_pending = FALSE;
     }
     return result;
@@ -476,7 +477,8 @@ int VideoDecoder::decode() {
     struct VideoHeader header;
     int keep_connection = 1;
     int status = 0;
-    SPDLOG_DEBUG("Trying to run a loop for receiving video data from {} ", con_addr(this->socket));
+    SPDLOG_DEBUG("Trying to run a loop for receiving video data from {} keep_running = {} keep_connection = {}", 
+            con_addr(this->socket), *this->keep_running, keep_connection);
     log_flush();
     while (*this->keep_running == 1 && keep_connection == 1) {
         int header_size = this->read_video_header(&header);

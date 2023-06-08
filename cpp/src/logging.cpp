@@ -55,11 +55,9 @@ class logger_config {
                 try {
                     this->logger = spdlog::basic_logger_mt("default", LOG_FILENAME);
                     spdlog::set_default_logger(this->logger);
-                    this->logger->flush_on(spdlog::level::debug);
-                    this->logger->flush_on(spdlog::level::info);
-                    this->logger->flush_on(spdlog::level::warn);
-                    this->logger->flush_on(spdlog::level::err);
-                    printf("Will logging into %s\n", LOG_FILENAME);
+                    auto level_name = spdlog::level::to_string_view(target_level);
+                    SPDLOG_INFO("Current log level is {}, {} in digit", level_name, m_enabled);
+                    printf("Will logging into %s  default level is %s \n", LOG_FILENAME, level_name.data());
                 } catch(const spdlog::spdlog_ex &ex) {
                     printf("Failed to create logger: %s\n", ex.what());
                 }

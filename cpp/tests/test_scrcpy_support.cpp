@@ -6,12 +6,16 @@
 #include <chrono>
 #include <stdio.h>
 #include <functional>
+#include <iostream>
+#include <fstream>
 #include <sys/stat.h>
 #include "boost/asio.hpp"
+#include "boost/bind.hpp"
 #include "utils.h"
 #include "test_client.h"
 
 using boost::asio::ip::tcp;
+namespace io = boost::asio;
 
 #define TEST_RECV_TOKEN "test_receiver"
 #define TEST_RECV_DEVICE_ID "test001"
@@ -110,11 +114,11 @@ public:
         s_device_disconnected_result_q = disconnected_callback_q;
         do_test_template([this](){
                 register_all_events();
-                SPDLOG_INFO("Trying to send video data");
+                SPDLOG_INFO("Trying to send video data for triggering decoding");
                 log_flush();
                 // wait the decocders to be ready
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 auto device_info_calback_ok = connect_video_socket([this](boost::shared_ptr<tcp::socket> conn){
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
                         this->send_video_bin(conn);
                 }, 10);
                 assert(device_info_calback_ok);
@@ -163,56 +167,48 @@ private:
         log_flush();
         return is_correct;
     } 
+    void on_video_sent(const boost::system::error_code& ec, std::size_t bytes_sent) {
+        if(ec) {
+            SPDLOG_ERROR("Sent {} bytes of {} to server with error: {}",  bytes_sent, this->m_video_file_path, ec.what());
+        } else {
+            SPDLOG_INFO("Sent {} to server with NO error",  this->m_video_file_path);
+        }
+    }
     void send_video_bin(boost::shared_ptr<tcp::socket> conn, bool check_frame_img_callback = true, int wait_timeout = 10, int at_least_frame_count = 1) {
         std::queue<bool> *frame_img_callback_q = new std::queue<bool>();
         {
             std::lock_guard<std::mutex> lock(s_device_frame_img_result_lock);
             s_device_frame_img_result_q = frame_img_callback_q;
         }
-        SPDLOG_INFO("Trying to send video data {} to sever", this->m_video_file_path);
+        auto data = boost::shared_ptr<io::streambuf>(new io::streambuf());
+        auto video_stream = std::ifstream(this->m_video_file_path);
+        SPDLOG_DEBUG("Reading {} from disk", this->m_video_file_path);
         log_flush();
-        FILE *fp;
-        fopen_s(&fp, this->m_video_file_path.c_str(), "rb");
-        if(!fp) {
-            SPDLOG_ERROR("Failed to open video file {}", this->m_video_file_path);
-            s_device_frame_img_result_q = NULL;
-            delete frame_img_callback_q;
-            return;
+        // skip 80 bytes socket type header and 68 bytes device info
+        auto ignored_bytes = 148;
+        char buffer[32 * 1024];
+        // skip the frist 148 bytes
+        video_stream.read(buffer, ignored_bytes);
+        SPDLOG_INFO("Sending {} to server", this->m_video_file_path);
+        log_flush();
+        int need_read = 32 * 1024;
+        while(video_stream.peek() != EOF) {
+            auto read_size = video_stream.readsome(buffer, need_read);
+            if (read_size > 0) {
+                auto sent_size = conn->send(io::buffer(buffer, read_size));
+                SPDLOG_DEBUG("Sent {}/{} bytes to server", sent_size, read_size);
+                log_flush();
+            } 
         }
-        int buffer_size = 2 * 1024 * 1024;
-        char* buffer = (char *)malloc(buffer_size * sizeof(char));
-        int data_send_cf[] = {
-            38, 65495, 27473, 31720,
-            6641, 131148, 10021, 14491,
-            10178, 12, 16755, 13491,
-            10001, 17657, 60437, 31573
-        };
-        for(int i = 0; i < 12; i++) {
-            int read_bytes = fread(buffer, sizeof(char), data_send_cf[i], fp);
-            // send data
-            if(read_bytes > 0) {
-                try{
-                    int sent_size = (int)conn->send(boost::asio::buffer(buffer, read_bytes));
-                    SPDLOG_DEBUG("Sent {}/{} video data to server.", sent_size, read_bytes);
-                    log_flush();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                } catch(boost::system::system_error& e) {
-                    SPDLOG_WARN("Failed to send {} bytes of video data: {}", read_bytes, e.what());
-                }
-            }
-            if (read_bytes < buffer_size) {
-                SPDLOG_INFO("Done reading {}", this->m_video_file_path);
-                break;
-            }
-        }
-        fclose(fp);
-        fp = NULL;
-        free(buffer);
         if (!check_frame_img_callback) {
             delete frame_img_callback_q;
             s_device_frame_img_result_q = NULL;
             return;
         }
+        SPDLOG_INFO("Waitting for decoding");
+        std::this_thread::sleep_for(std::chrono::seconds(20));
+        SPDLOG_INFO("Will checking frame_img_callback");
+        log_flush();
         // could not done decode test yet
         auto result = wait_for_result((char *)"check frame_img_callback called times", frame_img_callback_q, s_device_frame_img_result_lock, 10);
         delete frame_img_callback_q;
@@ -480,7 +476,10 @@ private:
             return false;
         }
         auto result = wait_for_result((char *)"device info callback", device_info_q, s_device_info_result_lock);
-        if(result && after_headers_sent) {
+        SPDLOG_INFO("Got device info callback? {}, should invoke after_headers_sent ? {}", result ? "YES":"NO",
+                after_headers_sent ? "YES":"NO");
+        log_flush();
+        if(after_headers_sent && result) {
             after_headers_sent(socket_ptr);
         }
         delete device_info_q;
