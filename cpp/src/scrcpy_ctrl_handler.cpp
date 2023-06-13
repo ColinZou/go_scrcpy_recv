@@ -134,6 +134,8 @@ int scrcpy_ctrl_socket_handler::run(std::function<void(std::string, std::string,
                     // do noting
                 } else {
                     SPDLOG_DEBUG("Unexpected status {} when trying to send msg_id={} with {} bytes data to device {}", status, msg->msg_id, msg->length, this->device_id->c_str());
+                    log_flush();
+                    break;
                 }
                 if(NULL != callback) {
                     callback(std::string(this->device_id->c_str()), std::string(msg->msg_id), status, msg->length);

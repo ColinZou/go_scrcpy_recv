@@ -56,6 +56,7 @@ class VideoDecoder {
         int width = 0;
         int height = 0;
         int *keep_running = NULL;
+        int *disconnect_flag = NULL;
         std::vector<uchar> *img_buffer = NULL;
         std::mutex img_buffer_lock;
         /*
@@ -99,18 +100,19 @@ class VideoDecoder {
 
     public:
         VideoDecoder(boost::shared_ptr<tcp::socket> socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
-                int *keep_running, std::vector<uchar>* img_buffer);
+                int *keep_running, std::vector<uchar>* img_buffer, int *disconnect_flag);
         ~VideoDecoder(void);
         int decode();
         void free_resources();
 };
 VideoDecoder::VideoDecoder(boost::shared_ptr<tcp::socket> socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
-        int* keep_running, std::vector<uchar>* img_buffer) {
+        int* keep_running, std::vector<uchar>* img_buffer, int *disconnect_flag) {
     this->socket = socket;
     this->callback = callback;
     this->buffer_cfg = buffer_cfg;
     this->keep_running = keep_running;
     this->img_buffer = img_buffer;
+    this->disconnect_flag = disconnect_flag;
 }
 void VideoDecoder::free_resources() {
 }
@@ -480,7 +482,7 @@ int VideoDecoder::decode() {
     SPDLOG_DEBUG("Trying to run a loop for receiving video data from {} keep_running = {} keep_connection = {}", 
             con_addr(this->socket), *this->keep_running, keep_connection);
     log_flush();
-    while (*this->keep_running == 1 && keep_connection == 1) {
+    while (*this->keep_running == 1 && keep_connection == 1 && !*disconnect_flag) {
         int header_size = this->read_video_header(&header);
         if (header_size <= 0) {
             keep_connection = 0;
@@ -504,7 +506,7 @@ int VideoDecoder::decode() {
     return status;
 }
 int socket_decode(boost::shared_ptr<tcp::socket> socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
-        int *keep_running) {
+        int *keep_running, int *disconnect_flag) {
     SPDLOG_INFO("socket_decode {}", con_addr(socket));
     log_flush();
     auto buffer_size = buffer_cfg->video_packet_buffer_size_kb * 1024 * 2;
@@ -512,7 +514,7 @@ int socket_decode(boost::shared_ptr<tcp::socket> socket, video_decode_callback *
     int result_code = 0;
     VideoDecoder *decoder = new VideoDecoder(socket, callback, 
             buffer_cfg, keep_running, 
-            image_buffer);
+            image_buffer, disconnect_flag);
     int result = decoder->decode();
     SPDLOG_INFO("Video decoder is shutting down");
     log_flush();

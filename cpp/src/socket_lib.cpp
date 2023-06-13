@@ -21,7 +21,8 @@ socket_lib::socket_lib(std::string token) :
     device_info_callback_dict(new std::map<std::string, std::vector<scrcpy_device_info_callback>*>()),
     m_token(token), 
     ctrl_socket_handler_map(new std::map<std::string, scrcpy_ctrl_socket_handler*>()),
-    ctrl_sending_callback_map(new std::map<std::string, scrcpy_device_ctrl_msg_send_callback>()){}
+    ctrl_sending_callback_map(new std::map<std::string, scrcpy_device_ctrl_msg_send_callback>()),
+    video_socket_disconnect_flag_map(new std::map<std::string, int*>()){}
 
     void socket_lib::on_video_callback(char* device_id, uint8_t* frame_data, uint32_t frame_data_size, int w, int h, int raw_w, int raw_h) {
         this->internal_video_frame_callback(device_id, frame_data, frame_data_size, w, h, raw_w, raw_h);
@@ -110,7 +111,15 @@ int socket_lib::handle_connetion(ClientConnection* connection) {
     if (!is_ctrl_socket) {
         SPDLOG_INFO("{} is a video socket for device {} ", con_addr(connection->client_socket), connection->device_id->c_str());
         log_flush();
-        result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection));
+        int *disconnect_flag = new int(0);
+        {
+            std::lock_guard<std::mutex> lock(this->video_socket_disconnect_flag_map_lock);
+            auto flag_add_result = this->video_socket_disconnect_flag_map->emplace(std::string(connection->device_id->c_str()), disconnect_flag);
+            if(!flag_add_result.second) {
+                SPDLOG_ERROR("Failed to add disconnect flag for device {}'s video socket", connection->device_id->c_str());
+            }
+        }
+        result = socket_decode(client_socket, this, connection->buffer_cfg, &(this->keep_accept_connection), disconnect_flag);
         SPDLOG_INFO("Decoder just ended for device {}", connection->device_id->c_str());
         log_flush();
     } else {
@@ -153,6 +162,11 @@ end:
         std::string device_id_str = *connection->device_id;
         auto item = this->ctrl_socket_handler_map->find(device_id_str);
         auto item_found = item != this->ctrl_socket_handler_map->end();
+        //lock video socket disconnect_flag
+        std::lock_guard<std::mutex> lock(this->video_socket_disconnect_flag_map_lock);
+        // trying to close video socket
+        auto video_socket_disconnect_flag = this->video_socket_disconnect_flag_map->find(device_id_str);
+        auto video_socket_disconnect_flag_found = video_socket_disconnect_flag != this->video_socket_disconnect_flag_map->end();
         SPDLOG_DEBUG("Found ctrl channel for {}, found ? {}", device_id_str.c_str(), item_found ? "yes":"no");
         if (is_ctrl_socket) {
             SPDLOG_DEBUG("Trying to cleaning ctrl socket for device {}", device_id_str);
@@ -161,12 +175,21 @@ end:
                 SPDLOG_DEBUG("Removing ctrl socket of {}  from map", connection->device_id->c_str());
                 this->ctrl_socket_handler_map->erase(item);
             }
+            if(video_socket_disconnect_flag_found) {
+                SPDLOG_DEBUG("Setting video disconnect_flag of deivce {} to 1", connection->device_id->c_str());
+                *video_socket_disconnect_flag->second = 1;
+            }
         } else {
             // tell ctrl socket to stop
             SPDLOG_DEBUG("device {} video socket is ending, trying to stop ctrl socket", connection->device_id->c_str());
             if (item_found) {
                 SPDLOG_DEBUG("Telling ctrl socket of {}  to stop ", connection->device_id->c_str());
                 item->second->stop();
+            }
+            if(video_socket_disconnect_flag_found) {
+                SPDLOG_DEBUG("Removing video socket disconnect flag for device {}", connection->device_id->c_str());
+                delete video_socket_disconnect_flag->second;
+                this->video_socket_disconnect_flag_map->erase(video_socket_disconnect_flag);
             }
         }
         SPDLOG_DEBUG("Cleaning device id data of device_id={}", connection->device_id->c_str());
@@ -309,6 +332,17 @@ socket_lib::~socket_lib() {
         this->ctrl_sending_callback_map->clear();
         delete this->ctrl_sending_callback_map;
         this->ctrl_sending_callback_map = NULL;
+    }
+    SPDLOG_DEBUG("Cleaning up video_socket_disconnect_flag_map");
+    if(this->video_socket_disconnect_flag_map) {
+        std::lock_guard<std::mutex> lock(this->video_socket_disconnect_flag_map_lock);
+        auto dict = this->video_socket_disconnect_flag_map;
+        auto first = dict->begin();
+        while(first != dict->end()) {
+            free(first->second);
+            first ++;
+        }
+        dict->clear();
     }
     SPDLOG_DEBUG("Finished cleaning socket_lib");
     log_flush();
