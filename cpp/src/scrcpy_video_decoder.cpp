@@ -393,7 +393,8 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
         int img_size = (int)this->img_buffer->size();
         SPDLOG_TRACE("sending {} bytes to callback", img_size);
         uint8_t* img_data = (uint8_t*)this->img_buffer->data();
-        this->callback->on_video_callback(device_id, img_data, (int)this->img_buffer->size(), target_width, target_height, width, height);
+        this->callback->on_video_callback(device_id, img_data, (int)this->img_buffer->size(), target_width, target_height, 
+                this->width, this->height);
     } else {
         SPDLOG_ERROR("Failed to encode a png file");
     }

@@ -35,6 +35,6 @@ echo "$adbCmd push $scrcpyServerPath  /sdcard/temp/scrcpy-server"
 if ($LASTEXITCODE -gt 0) {
     echo "Failed to copy scrcpy-server to proper location."
 } else {
-    & $adbCmd shell CLASSPATH=/sdcard/temp/scrcpy-server app_process / com.genymobile.scrcpy.Server 1.25 stay_awake=true max_fps=2 device_name=session001 socket_name=$env:SOCKET_NAME
+    & $adbCmd shell CLASSPATH=/sdcard/temp/scrcpy-server app_process / com.genymobile.scrcpy.Server 1.25 stay_awake=true max_fps=2 device_name=session001 socket_name=$env:SOCKET_NAME codec_options="repeat-previous-frame-after=1000"
 }
 
