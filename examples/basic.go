@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,7 +48,7 @@ func onFrameImageCallback(deviceId string, imgData *[]byte, imgSize *scrcpy_recv
 	if err := os.WriteFile(imgPath, *imgData, os.ModePerm); err != nil {
 		fmt.Printf("GOLANG:: Failed to write image %v: %v\n", imgPath, err)
 	} else {
-		fmt.Printf("GOLAGN:: Wrote frame image %s\n", imgPath)
+		fmt.Printf("GOLANG:: Wrote frame image %s\n", imgPath)
 	}
 }
 func onCtrlEventSent(deviceId string, msgId string, sendStatus int, dataLen int) {
@@ -84,6 +85,34 @@ func unregisterAllEvents(deviceId string, receiver scrcpy_recv.Receiver) {
 	receiver.RemoveAllImageCallbacks(deviceId)
 	receiver.RemoveAllDisconnectedCallbck(deviceId)
 }
+func isDigit(c string) bool {
+	_, err := strconv.Atoi(strings.Trim(c, " \t"))
+	return err == nil
+}
+func resizeFrameImage() {
+	sizeDelimiter := "x"
+	fmt.Println("Enter image size(WidthxHeight): ")
+	var choice string
+	n, err := fmt.Scanln(&choice)
+	if err != nil {
+		fmt.Printf("GOLANG: could not get input %v\n", err)
+		return
+	}
+	choice = strings.ToLower(choice)
+	if n == 0 || !strings.Contains(choice, sizeDelimiter) {
+		fmt.Printf("GOLANG: invalid frame image size spec %s\n", choice)
+		return
+	}
+	rawParts := strings.Split(choice, sizeDelimiter)
+	if len(rawParts) != 2 || !isDigit(rawParts[0]) || !isDigit(rawParts[1]) {
+		fmt.Printf("GOLANG: bad demision format %s\n", choice)
+		return
+	}
+	width, _ := strconv.Atoi(rawParts[0])
+	height, _ := strconv.Atoi(rawParts[1])
+	fmt.Printf("GOLANG: set frame image size to %dx%d\n", width, height)
+	listener.SetFrameImageSize(deviceId, width, height)
+}
 
 func run_server() {
 	deviceId = "session001"
@@ -103,6 +132,7 @@ func main() {
 		fmt.Println("1: registerEvents")
 		fmt.Println("2: unregisterEvents")
 		fmt.Println("3: sendFakeCtrlEvent")
+		fmt.Println("4: resize frame image")
 		fmt.Println("q: quit")
 		var choice string
 		n, err := fmt.Scanln(&choice)
@@ -124,6 +154,8 @@ func main() {
 			unregisterAllEvents(deviceId, listener)
 		case "3":
 			sendFakeCtrlEvent()
+		case "4":
+			resizeFrameImage()
 		case "q":
 			break_out = true
 		default:

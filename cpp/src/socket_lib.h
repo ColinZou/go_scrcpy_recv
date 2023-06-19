@@ -136,6 +136,9 @@ class socket_lib : video_decode_callback {
 
         void try_release();
 
+        void add_frame_img_size_cfg_callback(char *device_id, scrcpy_frame_img_size_cfg_callback callback);
+        void remove_frame_img_size_cfg_callback(char *device_id);
+
     private:
         boost::shared_ptr<tcp::acceptor> listen_socket = NULL;
         boost::shared_ptr<boost::asio::io_context> io_context = NULL;
@@ -148,6 +151,7 @@ class socket_lib : video_decode_callback {
         std::map<std::string, scrcpy_ctrl_socket_handler*> *ctrl_socket_handler_map = NULL;
         std::map<std::string, scrcpy_device_ctrl_msg_send_callback> *ctrl_sending_callback_map = NULL;
         std::map<std::string, int*> *video_socket_disconnect_flag_map = NULL;
+        std::map<std::string, std::vector<scrcpy_frame_img_size_cfg_callback>*> *frame_img_size_cfg_callback_map = NULL;
 
         std::mutex keep_accept_connection_lock;
         std::mutex image_size_lock;
@@ -155,6 +159,7 @@ class socket_lib : video_decode_callback {
         std::shared_mutex ctrl_socket_handler_map_lock;
         std::mutex ctrl_sending_callback_map_lock;
         std::mutex video_socket_disconnect_flag_map_lock;
+        std::mutex frame_img_size_cfg_callback_map_lock;
 
         frame_img_processor *callback_handler = new frame_img_processor();
         scrcpy_device_disconnected_callback disconnected_callback = NULL;

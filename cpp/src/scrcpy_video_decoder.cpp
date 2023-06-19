@@ -59,6 +59,7 @@ class VideoDecoder {
         int *disconnect_flag = NULL;
         std::vector<uchar> *img_buffer = NULL;
         std::mutex img_buffer_lock;
+        std::mutex decoder_lock;
         /*
          * 读取设备信息
          */
@@ -104,6 +105,7 @@ class VideoDecoder {
         ~VideoDecoder(void);
         int decode();
         void free_resources();
+        void on_img_size_configured(char *device_id, scrcpy_rect img_size);
 };
 VideoDecoder::VideoDecoder(boost::shared_ptr<tcp::socket> socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
         int* keep_running, std::vector<uchar>* img_buffer, int *disconnect_flag) {
@@ -137,12 +139,34 @@ int VideoDecoder::read_device_info() {
     array_copy_to(device_info_data, this->device_id, 0, SCRCPY_DEIVCE_ID_LENGTH);
     this->width = to_int(device_info_data, SCRCPY_DEVICE_INFO_SIZE, SCRCPY_DEIVCE_ID_LENGTH, device_size_bytes);
     this->height = to_int(device_info_data, SCRCPY_DEVICE_INFO_SIZE, SCRCPY_DEIVCE_ID_LENGTH + device_size_bytes, device_size_bytes);
-    SPDLOG_INFO("Device {} connected, width: {}, height: {}", this->device_id, this->width, this->height);
+    SPDLOG_INFO("Device {} connected, width: {}, height: {}, data callback is {}", this->device_id, this->width, 
+            this->height, (uintptr_t)this->callback);
     // callback for device info
     if (this->callback) {
         this->callback->on_device_info(device_id, this->width, this->height);
+        // adding image size callback for device
+        auto image_size_config_callback = std::bind(&VideoDecoder::on_img_size_configured, this, 
+                std::placeholders::_1, std::placeholders::_2);
+        SPDLOG_INFO("Add image size configured callback for device {}", device_id);
+        this->callback->add_frame_img_size_cfg_callback(device_id, image_size_config_callback);
     }
     return 0;
+}
+void VideoDecoder::on_img_size_configured(char *device_id, scrcpy_rect img_size) {
+    std::lock_guard<std::mutex> locker(this->decoder_lock);
+    auto codec_ctx = this->codec_ctx;
+    auto frame = this->frame;
+    bool has_frame = codec_ctx && frame;
+    SPDLOG_DEBUG("Frame image size configured to {} x {} for device {}, has_frame ? {}", img_size.width, img_size.height, 
+            device_id, has_frame ? "yes":"no");
+    // resend last frame
+    if(NULL == codec_ctx || NULL == frame) {
+        SPDLOG_WARN("Could not call rgb_frame_and_callback while codec_ctx/frame is null");
+        return;
+    }
+    SPDLOG_DEBUG("Trying to invoke rgb_frame_and_callback for device {} when frame image size reconfigured", this->device_id);
+    log_flush();
+    this->rgb_frame_and_callback(codec_ctx, frame);
 }
 VideoDecoder::~VideoDecoder() {
     SPDLOG_INFO("Cleaning video decoder");
@@ -401,6 +425,7 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
     return 0;
 }
 int VideoDecoder::decode_frames(uint64_t pts, int length) {
+    std::lock_guard<std::mutex> locker(this->decoder_lock);
     int result = 0;
     BOOL reset_has_pending = FALSE;
     int status = 0;
@@ -504,6 +529,11 @@ int VideoDecoder::decode() {
     }
     SPDLOG_DEBUG("Decoder loop was stopped for {} ", con_addr(this->socket));
     log_flush();
+    if (strlen(this->device_id) > 0) {
+        SPDLOG_DEBUG("Removing all frame image size callback for device {}", this->device_id);
+        log_flush();
+        this->callback->remove_frame_img_size_cfg_callback(this->device_id);
+    }
     return status;
 }
 int socket_decode(boost::shared_ptr<tcp::socket> socket, video_decode_callback *callback, connection_buffer_config* buffer_cfg,
