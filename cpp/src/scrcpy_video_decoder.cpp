@@ -2,6 +2,7 @@
 #include "scrcpy_video_decoder.h"
 #include <stdlib.h>
 #include "opencv2/imgcodecs.hpp"
+#include "opencv2/imgproc.hpp"
 #include <direct.h>
 #include <utils.h>
 #include <mutex>
@@ -59,7 +60,6 @@ class VideoDecoder {
         int *disconnect_flag = NULL;
         std::vector<uchar> *img_buffer = NULL;
         std::mutex img_buffer_lock;
-        std::mutex decoder_lock;
         /*
          * 读取设备信息
          */
@@ -153,7 +153,7 @@ int VideoDecoder::read_device_info() {
     return 0;
 }
 void VideoDecoder::on_img_size_configured(char *device_id, scrcpy_rect img_size) {
-    std::lock_guard<std::mutex> locker(this->decoder_lock);
+    std::lock_guard<std::mutex> locker(this->img_buffer_lock);
     auto codec_ctx = this->codec_ctx;
     auto frame = this->frame;
     bool has_frame = codec_ctx && frame;
@@ -166,7 +166,20 @@ void VideoDecoder::on_img_size_configured(char *device_id, scrcpy_rect img_size)
     }
     SPDLOG_DEBUG("Trying to invoke rgb_frame_and_callback for device {} when frame image size reconfigured", this->device_id);
     log_flush();
-    this->rgb_frame_and_callback(codec_ctx, frame);
+    cv::Mat target;
+    // just resend last frame data
+    cv::Size target_size = cv::Size(img_size.width, img_size.height);
+    SPDLOG_DEBUG("Calling resize with target size {} x {}", target_size.width, target_size.height);
+    log_flush();
+
+    cv::resize(*this->img_buffer, target, target_size, 0, 0, cv::INTER_CUBIC);
+    int bytes_size = target.total() * target.elemSize();
+    SPDLOG_TRACE("sending {} bytes to callback", img_size);
+    log_flush();
+
+    uint8_t* img_data = (uint8_t*)target.data;
+    this->callback->on_video_callback(device_id, img_data, bytes_size, img_size.width, img_size.height, 
+            this->width, this->height);
 }
 VideoDecoder::~VideoDecoder() {
     SPDLOG_INFO("Cleaning video decoder");
@@ -425,7 +438,6 @@ int VideoDecoder::rgb_frame_and_callback(AVCodecContext* dec_ctx, AVFrame* frame
     return 0;
 }
 int VideoDecoder::decode_frames(uint64_t pts, int length) {
-    std::lock_guard<std::mutex> locker(this->decoder_lock);
     int result = 0;
     BOOL reset_has_pending = FALSE;
     int status = 0;

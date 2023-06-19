@@ -522,7 +522,7 @@ void socket_lib::add_frame_img_size_cfg_callback(char *device_id, scrcpy_frame_i
     } else {
         callbacks = entry->second;
     }
-    SPDLOG_INFO("Adding callback for device {}'s frame img size cfg callback\n'", device_id);
+    SPDLOG_INFO("Adding callback for device {}'s frame img size cfg callback\n", device_id);
     callbacks->push_back(callback);
 }
 
