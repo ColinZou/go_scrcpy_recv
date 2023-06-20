@@ -58,6 +58,7 @@ ctest -C %BUILD_CFG% -VV --output-on-failure
 ) ELSE (
 echo Run relase build &&^
 cmake --build . --target scrcpy_recv scrcpy_demo_app --config %BUILD_CFG% &&^
+cmake --build . --target opencv_resize --config %BUILD_CFG% &&^
 echo CPP build succeed &&^
 echo COPY BINARYIES FROM %CPP_SRC_FOLDER%\%BUILD_FOLDER%\src\%BUILD_CFG% to %LIB_BIN_TARGET_FOLDER% &&^
 xcopy /Y src\%BUILD_CFG%\*.dll %LIB_BIN_TARGET_FOLDER% &&^

@@ -22,7 +22,8 @@ socket_lib::socket_lib(std::string token) :
     m_token(token), 
     ctrl_socket_handler_map(new std::map<std::string, scrcpy_ctrl_socket_handler*>()),
     ctrl_sending_callback_map(new std::map<std::string, scrcpy_device_ctrl_msg_send_callback>()),
-    video_socket_disconnect_flag_map(new std::map<std::string, int*>()){}
+    video_socket_disconnect_flag_map(new std::map<std::string, int*>()),
+    frame_img_size_cfg_callback_map(new std::map<std::string, std::vector<scrcpy_frame_img_size_cfg_callback>*>()){}
 
     void socket_lib::on_video_callback(char* device_id, uint8_t* frame_data, uint32_t frame_data_size, int w, int h, int raw_w, int raw_h) {
         this->internal_video_frame_callback(device_id, frame_data, frame_data_size, w, h, raw_w, raw_h);
@@ -54,19 +55,38 @@ void socket_lib::unregister_callback(char* device_id, frame_callback_handler cal
 }
 
 void socket_lib::config_image_size(char* device_id, int width, int height) {
-    std::lock_guard<std::mutex> guard{ image_size_lock };
-    SPDLOG_INFO("Trying to set image width={} height={} for device {}", width, height, device_id);
-    image_size* size_obj = new image_size();
-    size_obj->width = width;
-    size_obj->height = height;
-    SPDLOG_DEBUG("image_size_dict address is {} ", (uintptr_t)this->image_size_dict);
-    auto add_result = this->image_size_dict->emplace(device_id, size_obj);
-    if (!add_result.second) {
-        auto find = this->image_size_dict->find(device_id);
-        delete find->second;
-        find->second = size_obj;
+    {
+        std::lock_guard<std::mutex> guard{ image_size_lock };
+        SPDLOG_INFO("Trying to set image width={} height={} for device {}", width, height, device_id);
+        image_size* size_obj = new image_size();
+        size_obj->width = width;
+        size_obj->height = height;
+        SPDLOG_DEBUG("image_size_dict address is {} ", (uintptr_t)this->image_size_dict);
+        auto add_result = this->image_size_dict->emplace(device_id, size_obj);
+        if (!add_result.second) {
+            auto find = this->image_size_dict->find(device_id);
+            delete find->second;
+            find->second = size_obj;
+        }
     }
     SPDLOG_DEBUG("There're {} items inside image_size_dict", (long)(this->image_size_dict->size()));
+    {
+        std::lock_guard<std::mutex> callback_locker(this->frame_img_size_cfg_callback_map_lock);
+        auto map = this->frame_img_size_cfg_callback_map;
+        auto entry = map->find(std::string(device_id));
+        if(entry == map->end()) {
+            SPDLOG_DEBUG("No image size config callback for device {}", device_id);
+            return;
+        }
+        auto callbacks = entry->second;
+        scrcpy_rect size_obj = {
+            .width = width,
+            .height = height
+        };
+        for(scrcpy_frame_img_size_cfg_callback item : *callbacks) {
+            item(device_id, size_obj);
+        }
+    }
 }
 
 std::string* socket_lib::read_socket_type(ClientConnection* connection) {
@@ -343,6 +363,19 @@ socket_lib::~socket_lib() {
             first ++;
         }
         dict->clear();
+        this->video_socket_disconnect_flag_map = NULL;
+    }
+    if(this->frame_img_size_cfg_callback_map) {
+        std::lock_guard<std::mutex> lock(this->frame_img_size_cfg_callback_map_lock);
+        auto map = this->frame_img_size_cfg_callback_map;
+        auto first = map->begin();
+        while(first != map->end()) {
+            free(first->second);
+            first ++;
+        }
+        map->clear();
+        delete this->frame_img_size_cfg_callback_map;
+        this->frame_img_size_cfg_callback_map = NULL;
     }
     SPDLOG_DEBUG("Finished cleaning socket_lib");
     log_flush();
@@ -476,4 +509,31 @@ void socket_lib::internal_on_ctrl_msg_sent_callback(std::string device_id, std::
 
 void socket_lib::set_device_disconnected_callback(scrcpy_device_disconnected_callback callback) {
     this->disconnected_callback = callback;
+}
+
+void socket_lib::add_frame_img_size_cfg_callback(char *device_id, scrcpy_frame_img_size_cfg_callback callback) {
+    std::lock_guard<std::mutex> locker(this->frame_img_size_cfg_callback_map_lock);
+    auto map = this->frame_img_size_cfg_callback_map;
+    auto entry = map->find(std::string(device_id));
+    std::vector<scrcpy_frame_img_size_cfg_callback> *callbacks = NULL;
+    if(entry == map->end()) {
+         callbacks = new std::vector<scrcpy_frame_img_size_cfg_callback>();
+         map->emplace(device_id, callbacks);
+    } else {
+        callbacks = entry->second;
+    }
+    SPDLOG_INFO("Adding callback for device {}'s frame img size cfg callback\n", device_id);
+    callbacks->push_back(callback);
+}
+
+void socket_lib::remove_frame_img_size_cfg_callback(char *device_id) {
+    std::lock_guard<std::mutex> locker(this->frame_img_size_cfg_callback_map_lock);
+    auto map = this->frame_img_size_cfg_callback_map;
+    auto entry = map->find(std::string(device_id));
+    SPDLOG_INFO("Removing all callbacks for device {}'s frame img size cfg callback\n'", device_id);
+    if(entry != map->end()) {
+        entry->second->clear();
+        delete entry->second;
+        map->erase(entry);
+    }
 }

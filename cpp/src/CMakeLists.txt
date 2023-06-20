@@ -25,14 +25,19 @@ add_executable(scrcpy_demo_app
     "scrcpy_demo_app.cpp" "scrcpy_demo_app.h"
     ${LIB_FILES})
 
+add_executable(opencv_resize "resize_img.cpp")
+
 option(CMAKE_USE_WIN32_THREADS_INIT "using WIN32 threads" ON)
 option(gtest_disable_pthreads "Disable uses of pthreads in gtest." ON)
 
 if(CMAKE_VERSION VERSION_GREATER 3.12)
   set_property(TARGET scrcpy_demo_app PROPERTY CXX_STANDARD 20)
   set_property(TARGET scrcpy_recv PROPERTY CXX_STANDARD 20)
+  set_property(TARGET opencv_resize PROPERTY CXX_STANDARD 20)
 endif()
 
 target_link_libraries(scrcpy_demo_app PUBLIC scrcpy_recv)
 target_link_libraries(scrcpy_recv PUBLIC ${SCRCPY_LINK_LIBS})
+target_link_libraries(opencv_resize PUBLIC ${SCRCPY_LINK_LIBS})
+
 
