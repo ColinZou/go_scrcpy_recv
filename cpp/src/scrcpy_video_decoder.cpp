@@ -156,30 +156,44 @@ void VideoDecoder::on_img_size_configured(char *device_id, scrcpy_rect img_size)
     std::lock_guard<std::mutex> locker(this->img_buffer_lock);
     auto codec_ctx = this->codec_ctx;
     auto frame = this->frame;
-    bool has_frame = codec_ctx && frame;
+    bool has_frame = codec_ctx && frame && this->img_buffer;
     SPDLOG_DEBUG("Frame image size configured to {} x {} for device {}, has_frame ? {}", img_size.width, img_size.height, 
             device_id, has_frame ? "yes":"no");
     // resend last frame
-    if(NULL == codec_ctx || NULL == frame) {
+    if(!has_frame) {
         SPDLOG_WARN("Could not call rgb_frame_and_callback while codec_ctx/frame is null");
         return;
     }
     SPDLOG_DEBUG("Trying to invoke rgb_frame_and_callback for device {} when frame image size reconfigured", this->device_id);
     log_flush();
-    cv::Mat target;
+
+    cv::Mat target(img_size.width, img_size.height, CV_8UC4);
     // just resend last frame data
     cv::Size target_size = cv::Size(img_size.width, img_size.height);
-    SPDLOG_DEBUG("Calling resize with target size {} x {}", target_size.width, target_size.height);
-    log_flush();
+    
+    auto src_img = cv::imdecode(*this->img_buffer, cv::IMREAD_COLOR);
+    cv::resize(src_img, target, target_size, 0, 0);
+    std::vector<uchar> *target_buffer = new std::vector<uchar>(img_size.width * img_size.height * 4);
+    if (cv::imencode(".png", target, *target_buffer)) {
+        SPDLOG_DEBUG("Called resize with target size {} x {} for device {}. src image size {} x {} ({} bytes), result image size {} x {} ({} bytes).", 
+                target_size.width, target_size.height,
+                this->device_id, src_img.cols, src_img.rows, this->img_buffer->size(),
+                target.cols, target.rows, target_buffer->size());
+        log_flush();
 
-    cv::resize(*this->img_buffer, target, target_size, 0, 0, cv::INTER_CUBIC);
-    int bytes_size = target.total() * target.elemSize();
-    SPDLOG_TRACE("sending {} bytes to callback", img_size);
-    log_flush();
+        target.release();
+        int bytes_size = (int)target_buffer->size();
+        SPDLOG_DEBUG("Done resizing. Now sending {} bytes to callback", bytes_size);
+        log_flush();
 
-    uint8_t* img_data = (uint8_t*)target.data;
-    this->callback->on_video_callback(device_id, img_data, bytes_size, img_size.width, img_size.height, 
-            this->width, this->height);
+        uint8_t* img_data = (uint8_t*)target_buffer->data();
+        this->callback->on_video_callback(device_id, img_data, bytes_size, img_size.width, img_size.height, 
+                this->width, this->height);
+    } else {
+        SPDLOG_ERROR("Failed to encode scaled image to png");
+    }
+    delete target_buffer;
+
 }
 VideoDecoder::~VideoDecoder() {
     SPDLOG_INFO("Cleaning video decoder");
